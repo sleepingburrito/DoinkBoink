@@ -51,6 +51,40 @@ void ByteCopy(const uint8_t* const from, uint8_t* const to, const size_t byteCou
 		to[i] = from[i];
 	}
 }
+//end of mem
+
+//string tools
+char* BufferStringAppend(const bool reset, const char* const textToAdd) {
+	//adds text to a internal string and returns a pointer to it
+
+#define BufferSize 2048
+	static char buffer[BufferSize];
+	static uint16_t size = 0;
+
+	if (reset) {
+		ZeroOut((uint8_t*)buffer, BufferSize);
+		size = 0;
+	}
+
+	for (uint16_t i = 0; textToAdd[i] != 0; i++) {
+		buffer[size] = textToAdd[i];
+		++size;
+		if (size >= BufferSize - 1) {
+			printf("BufferStringAppend string lengh too long \n buffer: %s \n to add: %s", buffer, textToAdd);
+			assert(false);
+			break;
+		}
+	}
+	return buffer;
+#undef BufferSize
+}
+
+char* BufferStringMakeBaseDir(const char * const fileName) {
+	BufferStringAppend(true, SDL_GetBasePath());
+	return BufferStringAppend(false, fileName);
+}
+//end of string tools
+
 
 //timing tools
 //these are in miliseconds

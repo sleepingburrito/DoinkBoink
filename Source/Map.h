@@ -121,18 +121,17 @@ void LoadMap(const uint8_t mapId) {
 	{
 		case MAP_DEBUG:
 			LoadMapArray(mapDebug, sizeof(mapDebug) / sizeof(uint16_t));
+			LogTextScreen(MAP_NAME_DEBUG, 0);
 		break;
 
 		case MAP_EMPY:
 			LoadMapArray(mapEmpy, sizeof(mapEmpy) / sizeof(uint16_t));
+			LogTextScreen(MAP_NAME_EMPTY, 0);
 			break;
 
 		case MAP_BIG_S:
 			LoadMapArray(mapBigS, sizeof(mapBigS) / sizeof(uint16_t));
-			break;
-
-		case MAP_TENNINS:
-			LoadMapArray(mapTennis, sizeof(mapTennis) / sizeof(uint16_t));
+			LogTextScreen(MAP_NAME_LINE, 0);
 			break;
 
 

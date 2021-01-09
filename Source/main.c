@@ -24,6 +24,7 @@
 #include "BallCode.h"
 #include "PlayerCode.h"
 
+#include <math.h>
 
 void InitGameOnly(void) {
 	//use to reset the game but keep sdl running
@@ -34,15 +35,19 @@ void InitGameOnly(void) {
 	InitBaseCollision();
 	RngInit(0);
 	InitParticles();
+	InitGameClock();
 	screen = SCREEN_STATE_GAME;
 }
 
 //int main(int argc, char* argv[]) {
 int main(void) {
 
+	//printf("%s\n", argv[0]);
+
 	//debug for physics, helps make tables
 	//for (uint16_t i = 0; i < 255; ++i) {
-	//	printf("%d,", (uint16_t)(i * i));
+	//	double part = 2.0 * 3.1415926 / 255.0;
+	//	printf("%d,", (int8_t)(128.0 * sin(part * i)));
 	//}
 
 	//unused, here to make VS happy
@@ -61,8 +66,10 @@ int main(void) {
 	newMapIndex = MAP_DEBUG; //debug start map
 
 
-	//starting music test
-	
+
+	//tese debug
+
+
 
 	//main loop
 	do{
@@ -77,7 +84,7 @@ int main(void) {
 
 		//update sld events
 		SDL_PollEvent(&event);
-		if (event.type == SDL_QUIT) {
+		if (SDL_QUIT == event.type) {
 			//if the user presses the X on the window quit
 			quitGame = true;
 		}
@@ -97,6 +104,10 @@ int main(void) {
 		//updateGameLogic = true; //debug no frame cap
 		
 		//end of loop upkeep
+
+
+		//test debug
+
 
 		//game logic
 		if (updateGameLogic) {
@@ -130,21 +141,28 @@ int main(void) {
 					PlayerSteps();
 					CheckPlayersScores();
 					ParticlStep();
-					
+
 					RewindRecord();
 					ReplayStartStep();
+
 					//test
 				}
 
 				//step world timers
 				DiscernmentAllTimers(gs.worldTimers, WOLD_TIMER_COUNT);
+				TickGameClock();
 
 				//draw
 				SpriteTimerTick();
 				DrawBackground(gs.mapIndex);
 				DrawMapDebug();
+				
+				DrawScore();
+				DrawGameClock();
+
 				DrawPlayers();
 				DrawBall(&gs.ball);
+				
 				DrawPartics();
 				DrawEndGameWinningText();
 
@@ -155,29 +173,46 @@ int main(void) {
 				
 				//step
 				RewindStep();
+				
 				//draw
+				ClearScreenSoildColor();
 				DrawMapDebug();
+				
+				DrawScore();
+				DrawGameClock();
+
 				DrawPlayers();
 				DrawPlayersDebug();
+				
 				DrawBall(&gs.ball);
 				DrawBallDebug(&gs.ball);
+				
 				DrawPartics();
+				
+
 				break; //end SCREEN_STATE_REWIND
 
 			case SCREEN_STATE_INSTANT_REPLAY:
 				//draw
 				DrawBackground(gs.mapIndex);
-				if (replaySlowMo & REPLAY_BLINK_MASK) DrawText(REPLAY_TEXT_X, REPLAY_TEXT_Y, false, REPLAY_TEXT); //blink text
 				DrawMapDebug();
+				
+				DrawScore();
+				DrawGameClock();
+
 				DrawPlayers();
 				DrawBall(&gs.ball);
+				
 				DrawPartics();
+				DrawEndGameWinningText();
+
 				//load next state in replay
 				ReplayScreenStep();
 				break; //end SCREEN_STATE_INSTANT_REPLAY
 
 			case SCREEN_STATE_GAME_PAUSED:
 				SpriteTimerTick();
+				DrawBackground(gs.mapIndex);
 				DrawPlayers();
 				DrawPartics();
 				break;
@@ -196,6 +231,10 @@ int main(void) {
 			if (drawFpsCounter) {
 				DrawTextNumberAppend(FPSDISP_X, FPSDISP_Y, false, FPS_TEXT" ", FPScounterMs());
 			}
+
+			//screen log draw
+			LogTextScreenTickTimers();
+			LogTextScreenDraw();
 
 		}//end of game logic
 

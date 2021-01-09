@@ -9,9 +9,20 @@
 void InitRewind(void) {
 	ZeroOut((uint8_t*)tap, sizeof(tap));
 	tapFrame = 0;
+	tapFrameLast = 0;
+	recordInitTime = 0;
+	replayStartTimer = 0;
+	replaySlowMo = 0;
 }
 
 void RewindStep(void) {
+
+	//if buffer it not full go back
+	if (recordInitTime != UINT8_MAX - 1) {
+		screen = SCREEN_STATE_GAME;
+		return;
+	}
+
 	const flags keys = padIO[PADIO_INDEX(PAD_STATE_TAP, PLAYER_ONE)] | padIO[PADIO_INDEX(PAD_STATE_TAP, PLAYER_TWO)];
 
 	if (FLAG_TEST(keys, PAD_LEFT)) {
@@ -34,7 +45,13 @@ void RewindStep(void) {
 }
 
 void RewindRecord(void) {
-	tap[tapFrame++] = gs;
+	tapFrame++;
+	tap[tapFrame] = gs;
+	
+	//let the game know filled the record buffer
+	if (recordInitTime != UINT8_MAX - 1) {
+		++recordInitTime;
+	}
 }
 
 void RewindEnter(void) {
@@ -54,7 +71,17 @@ void RewindExit(void) {
 
 //used outside of the replay screen state to get to it
 void ReplayStartStep(void){
+	//start replay
 	if (replayStartTimer > 0) {
+
+		//if record buffer is not full dont do replay
+		if (recordInitTime != UINT8_MAX - 1) {
+			screen = SCREEN_STATE_GAME;
+			RestartMatch();
+			return;
+		}
+
+
 		if (--replayStartTimer == 1) {
 			replayStartTimer = 0;
 			screen = SCREEN_STATE_INSTANT_REPLAY;
@@ -95,8 +122,6 @@ void ReplayScreenStep(void) {
 	//restart the game at replay end
 	if (tapFrame == tapFrameLast) {
 		screen = SCREEN_STATE_GAME;
-		InitPlayers();
-		InitBall();
-		InitParticles();
+		RestartMatch();
 	}
 }

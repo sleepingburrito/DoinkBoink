@@ -32,6 +32,10 @@
 #define FPSDISP_X (150)
 #define FPSDISP_Y (5)
 
+#define BACKGROUND_SHAKE_START_RATE 30 //how much shake to start
+#define BACKGROUND_SHAKE_DECAY_RATE 1 //how fast it will decay
+#define BACKGROUND_SHAKE_DIV 10 //reduce shake effect
+
 #define SPRITE_FILE_BASE "graphics" FILE_DIR
 
 #define SPRITE_FILE SPRITE_FILE_BASE "sprites.png"
@@ -132,7 +136,8 @@ enum MUSIC_ENUM {
 //end of sound
 
 //timing
-#define MS_TILL_UPDATE 16 //game logic update rate, this rate will be used (if vsynce is slower that will be used)
+#define TARGET_FRAME_RATE 60 //in FPS
+#define MS_TILL_UPDATE (1000 / TARGET_FRAME_RATE - 1) //game logic update rate, this rate will be used (if vsynce is slower that will be used). -1 to round down for headroom
 #define MS_TIME_SHIFT_MASK 3 //used for setting the max slowdown when adjusting game speed
 
 #define WATCHDOD_MASK 511 //contolles the rate the watchdog send a update (inframes)
@@ -161,7 +166,8 @@ const uint8_t BRAKES_FRICTION[UINT8_MAX + 1] = { 0,0,0,2,3,4,5,6,6,7,8,9,10,11,1
 const uint8_t TRUST_ANGLE[UINT8_MAX + 1] = { 1, 1, 1, 2, 2, 3, 4, 4, 5, 6, 7, 7, 8, 9, 9, 10, 11, 12, 12, 13, 14, 14, 15, 16, 16, 17, 18, 19, 19, 20, 21, 21, 22, 23, 24, 24, 25, 26, 26, 27, 28, 28, 29, 30, 31, 31, 32, 33, 33, 34, 35, 36, 36, 37, 38, 38, 39, 40, 41, 41, 42, 43, 43, 44, 45, 45, 46, 47, 48, 48, 49, 50, 50, 51, 52, 53, 53, 54, 55, 55, 56, 57, 57, 58, 59, 60, 60, 61, 62, 62, 63, 64, 65, 65, 66, 67, 67, 68, 69, 69, 70, 71, 72, 72, 73, 74, 74, 75, 76, 77, 77, 78, 79, 79, 80, 81, 82, 82, 83, 84, 84, 85, 86, 86, 87, 88, 89, 89, 90, 91, 91, 92, 93, 94, 94, 95, 96, 96, 97, 98, 98, 99, 100, 101, 101, 102, 103, 103, 104, 105, 106, 106, 107, 108, 108, 109, 110, 110, 111, 112, 113, 113, 114, 115, 115, 116, 117, 118, 118, 119, 120, 120, 121, 122, 123, 123, 124, 125, 125, 126, 127, 127, 128, 129, 130, 130, 131, 132, 132, 133, 134, 135, 135, 136, 137, 137, 138, 139, 139, 140, 141, 142, 142, 143, 144, 144, 145, 146, 147, 147, 148, 149, 149, 150, 151, 152, 152, 153, 154, 154, 155, 156, 156, 157, 158, 159, 159, 160, 161, 161, 162, 163, 164, 164, 165, 166, 166, 167, 168, 168, 169, 170, 171, 171, 172, 173, 173, 174, 175, 176, 176, 177, 178, 178, 179, 180 };
 //rng
 const uint8_t RNG_TABLE[UINT8_MAX + 1] = { 25, 223, 204, 22, 170, 81, 26, 16, 124, 255, 161, 162, 65, 42, 213, 162, 198, 231, 48, 131, 110, 148, 79, 18, 139, 77, 17, 125, 203, 138, 118, 40, 251, 138, 170, 3, 11, 38, 185, 84, 74, 68, 163, 142, 241, 73, 143, 17, 236, 177, 150, 138, 162, 110, 107, 231, 103, 203, 73, 202, 138, 159, 184, 115, 181, 194, 198, 207, 94, 243, 238, 66, 10, 223, 164, 147, 132, 41, 108, 109, 212, 90, 238, 144, 143, 79, 204, 197, 42, 145, 96, 56, 90, 164, 191, 88, 235, 193, 214, 15, 249, 235, 205, 107, 231, 164, 178, 226, 253, 19, 5, 166, 36, 106, 171, 11, 203, 26, 129, 151, 43, 58, 221, 16, 23, 170, 236, 158, 111, 113, 145, 126, 199, 231, 143, 58, 72, 13, 127, 55, 2, 117, 58, 130, 252, 199, 78, 31, 101, 13, 201, 100, 143, 54, 107, 172, 153, 207, 10, 216, 56, 88, 80, 110, 146, 149, 218, 126, 178, 31, 71, 125, 18, 158, 156, 45, 36, 55, 87, 42, 130, 228, 166, 121, 93, 39, 38, 94, 127, 251, 107, 111, 214, 132, 150, 188, 151, 191, 17, 5, 133, 10, 240, 142, 223, 179, 207, 6, 10, 220, 39, 31, 136, 130, 24, 51, 91, 130, 34, 201, 137, 209, 92, 60, 91, 34, 185, 218, 218, 64, 170, 28, 88, 183, 253, 151, 232, 95, 161, 194, 186, 9, 53, 219, 210, 132, 98, 74, 118, 40, 12, 171, 57, 130, 191, 219 };
-
+//sin
+const int8_t SIN_TABLE[UINT8_MAX + 1] = { 0,3,6,9,12,15,18,21,25,28,31,34,37,40,43,46,49,52,54,57,60,63,66,68,71,73,76,79,81,83,86,88,90,92,95,97,99,101,103,104,106,108,110,111,113,114,115,117,118,119,120,121,122,123,124,125,125,126,126,127,127,127,127,127,127,127,127,127,127,126,126,125,125,124,123,123,122,121,120,119,117,116,115,113,112,110,109,107,105,104,102,100,98,96,94,91,89,87,85,82,80,77,75,72,70,67,64,61,59,56,53,50,47,44,41,38,35,32,29,26,23,20,17,14,11,7,4,1,-1,-4,-7,-11,-14,-17,-20,-23,-26,-29,-32,-35,-38,-41,-44,-47,-50,-53,-56,-59,-61,-64,-67,-70,-72,-75,-77,-80,-82,-85,-87,-89,-91,-94,-96,-98,-100,-102,-104,-105,-107,-109,-110,-112,-113,-115,-116,-117,-119,-120,-121,-122,-123,-123,-124,-125,-125,-126,-126,-127,-127,-127,-127,-127,-127,-127,-127,-127,-127,-126,-126,-125,-125,-124,-123,-122,-121,-120,-119,-118,-117,-115,-114,-113,-111,-110,-108,-106,-104,-103,-101,-99,-97,-95,-92,-90,-88,-86,-83,-81,-79,-76,-73,-71,-68,-66,-63,-60,-57,-54,-52,-49,-46,-43,-40,-37,-34,-31,-28,-25,-21,-18,-15,-12,-9,-6,-3 };
 
 //physics masks
 enum physicsMasks {
@@ -186,6 +192,7 @@ enum physicsMasks {
 
 #define PLAYER_WALL_JUMPH 80
 #define PLAYER_WALL_JUMPV 80
+#define PLAYER_WALL_JUMP_TIMER 8 //number of frames away from a wall you can still do a wall jump in
 
 #define PLAYER_DOUBLE_JUMP 50
 #define PLAYER_FLASH_JUMPH 43
@@ -237,7 +244,10 @@ enum physicsMasks {
 #define PLAYER_HIT_TIME 100 //cant attack and invensable, but can still move (if you get hit)
 #define PLAYER_SCORE_PAUSE_GAME 18 //in frames for dramtic effect, pauses game play
 #define PLAYER_DEAD_BOUNCE_TIME 35 //you bounce during this time
+
 #define PLAYER_MAX_SCORE 5 //match ends after somone dies more than this
+
+#define PLAYER_GAME_CLOCK_MAX (90 * TARGET_FRAME_RATE)
 
 #define PLAYER_BLINK_RATE 0b00000100
 #define PLAYER1_RED_DEBUG 0xFF
@@ -302,6 +312,8 @@ enum playerTimersIndex {
 	PLAYER_BOUNCH_TIMER,
 	PLAYER_SPAWN_TIMER, //used to denote things that can't be done while the player is spawning
 	
+	PLAYER_WALLJUMP_TIMER,
+
 	//AI
 	PLAYER_AI_NEW_WALK_LOC,
 	PLAYER_AI_ATTACK_TIMER,
@@ -327,24 +339,43 @@ enum playerAiMasks {
 //#define AI_MAP_RNG_START 50
 //#define AI_MAP_RNG_MASK_LENGTH 511
 
-#define AI_MISS_RATE 128 //miss a catch
-#define AI_TROW_TIMER_MASK 127 //timer trow rate
+//miss a catch (smaller number more missing)
+#define AI_MISS_RATE_EASY 50
+#define AI_MISS_RATE_MEDIUM 128 
+#define AI_MISS_RATE_HARD 200
+
+//timer trow rate (bigger mask longer times between trows)
+#define AI_TROW_TIMER_MASK_EASY 254
+#define AI_TROW_TIMER_MASK_MEDIUM 127
+#define AI_TROW_TIMER_MASK_HARD AI_TROW_TIMER_MASK_MEDIUM
 
 #define AI_DODGE_RATE 100
 #define AI_DISTANCE_DODGE 300
 
 #define AI_RNG_KEY 5
 
+//what AI gets set when players are INIT
+enum AI_GLOB_SETTING
+{
+	AI_SET_OFF,
+	AI_SET_EASY,
+	AI_SET_MEDIUM,
+	AI_SET_HARD,
+	AI_SET_FETCH,
+
+	AI_SETTINGS_COUNT
+};
+
 //
 //AI end
 
 //==instant replay==
 #define REPLAY_START_IN 40 //how long till the reaply starts once called
-#define REPLAY_FRAME_START 240//120 //keep under UIN8_MAX, number of frames to start back in recoding
+#define REPLAY_FRAME_START 120 //keep under UIN8_MAX, number of frames to start back in recoding
 
 #define REPLAY_TEXT_X 350
 #define REPLAY_TEXT_Y (BASE_RES_HEIGHT / 2 - SPRITE_HEIGHT_HALF)
-#define REPLAY_BLINK_MASK 16
+#define REPLAY_BLINK_MASK 8
 //
 
 
@@ -431,20 +462,20 @@ enum padMasks
 #define P1_KEY_LEFT SDL_SCANCODE_A
 #define P1_KEY_RIGHT SDL_SCANCODE_D
 
-#define P1_PAD_BUTTON_JMP 0 
+#define P1_PAD_BUTTON_JMP 1
 #define P1_PAD_BUTTON_JMP_ALT P1_PAD_BUTTON_JMP
 #define P1_KEY_JMP SDL_SCANCODE_C
 
-#define P1_PAD_BUTTON_ACTION 1 //trow / catch
+#define P1_PAD_BUTTON_ACTION 2 //trow / catch
 #define P1_PAD_BUTTON_ACTION_ALT P1_PAD_BUTTON_ACTION
 #define P1_KEY_ACTION SDL_SCANCODE_V
 
-#define P1_PAD_BUTTON_RUN 2
+#define P1_PAD_BUTTON_RUN 0
 #define P1_PAD_BUTTON_RUN_ALT P1_PAD_BUTTON_RUN
 #define P1_KEY_RUN SDL_SCANCODE_B
 
-#define P1_PAD_BUTTON_DODGE 3 //dodge
-#define P1_PAD_BUTTON_DODGE_ALT 2 //is analong axis 4
+#define P1_PAD_BUTTON_DODGE 5 //dodge
+#define P1_PAD_BUTTON_DODGE_ALT 3 
 #define P1_KEY_DODGE SDL_SCANCODE_N
 //end player 1 keys
 
@@ -463,20 +494,20 @@ enum padMasks
 #define P2_KEY_LEFT SDL_SCANCODE_LEFT
 #define P2_KEY_RIGHT SDL_SCANCODE_RIGHT
 
-#define P2_PAD_BUTTON_JMP 0
-#define P2_PAD_BUTTON_JMP_ALT P1_PAD_BUTTON_JMP
+#define P2_PAD_BUTTON_JMP P1_PAD_BUTTON_JMP
+#define P2_PAD_BUTTON_JMP_ALT P2_PAD_BUTTON_JMP
 #define P2_KEY_JMP SDL_SCANCODE_H
 
-#define P2_PAD_BUTTON_ACTION 1
-#define P2_PAD_BUTTON_ACTION_ALT P1_PAD_BUTTON_ACTION
+#define P2_PAD_BUTTON_ACTION P1_PAD_BUTTON_ACTION
+#define P2_PAD_BUTTON_ACTION_ALT P2_PAD_BUTTON_ACTION
 #define P2_KEY_ACTION SDL_SCANCODE_J
 
-#define P2_PAD_BUTTON_RUN 2
+#define P2_PAD_BUTTON_RUN P1_PAD_BUTTON_RUN
 #define P2_PAD_BUTTON_RUN_ALT P2_PAD_BUTTON_RUN
 #define P2_KEY_RUN SDL_SCANCODE_K
 
-#define P2_PAD_BUTTON_DODGE 3
-#define P2_PAD_BUTTON_DODGE_ALT 2
+#define P2_PAD_BUTTON_DODGE P1_PAD_BUTTON_DODGE
+#define P2_PAD_BUTTON_DODGE_ALT P1_PAD_BUTTON_DODGE_ALT
 #define P2_KEY_DODGE SDL_SCANCODE_L
 //end player 2 keys
 
@@ -487,13 +518,13 @@ enum padMasks
 #define PAD_DEBUG_SWAP 5 //swaps players contollors, right bumper
 #define KEY_DEBUG_SWAP SDL_SCANCODE_1
 
-#define PAD_DEBUG_REINIT 4 //left bumper (if a contollr gets disconnted run this)
+#define PAD_DEBUG_REINIT 8 //left analog click in
 #define KEY_DEBUG_REINIT SDL_SCANCODE_2
 
 #define PAD_DEBUG_REWIND 9 //click in right joystick
 #define KEY_DEBUG_REWIND SDL_SCANCODE_3
 
-#define PAD_DEBUG_CHANGE_MAP 8 //left analog click in
+#define PAD_DEBUG_CHANGE_MAP 4 //left bumper (if a contollr gets disconnted run this)
 #define KEY_DEBUG_CHANGE_MAP SDL_SCANCODE_4
 
 #define PAD_PAUSE 7 //start button
@@ -621,8 +652,7 @@ enum MapIndexes {
 	MAP_DEBUG, //de_bug, hehe
 	MAP_EMPY,
 	MAP_BIG_S,
-	MAP_TENNINS,
-
+	
 	MAP_COUNT
 };
 
@@ -648,8 +678,8 @@ enum MapSpawnIndexes {
 
 //current
 const uint16_t mapDebug[] = { //MAP_DEBUG
-	PLAYER_ONE_START_X - 30, PLAYER_ONE_START_Y,
-	PLAYER_TWO_START_X + 30, PLAYER_TWO_START_Y,
+	PLAYER_ONE_START_X , PLAYER_ONE_START_Y - 200,
+	PLAYER_TWO_START_X , PLAYER_TWO_START_Y - 200,
 	BALL1_START_X, BALL1_START_Y,
 	7, 474, 33, 947,
 	5, 7, 457, 33,
@@ -660,8 +690,9 @@ const uint16_t mapDebug[] = { //MAP_DEBUG
 
 const uint16_t mapEmpy[] = {
 	PLAYER_ONE_START_X, PLAYER_ONE_START_Y,
-	PLAYER_TWO_START_X, PLAYER_TWO_START_Y,
-	BALL1_START_X, BALL1_START_Y,
+	PLAYER_ONE_START_X, PLAYER_ONE_START_X,
+	PLAYER_TWO_START_X, 100,
+	//4 walls
 	3, 3, 33, 951,
 	2, 44, 423, 33,
 	3, 474, 33, 951,
@@ -669,40 +700,54 @@ const uint16_t mapEmpy[] = {
 };
 
 const uint16_t mapBigS[] = {
-	//spawns (vary diffrent from rest)
-	PLAYER_ONE_START_X, PLAYER_ONE_START_Y,
-	PLAYER_ONE_START_X, PLAYER_ONE_START_X,
-	PLAYER_TWO_START_X, 100,
-	//walls
-	3, 3, 33, 951,
-	2, 44, 423, 33,
-	3, 474, 33, 951,
-	920, 42, 425, 33,
-	//inside
-	//45, 200, 250, 160,
-	450, 215, 250, 450
-};
-
-const uint16_t mapTennis[] = {
 	//spawns
-	PLAYER_ONE_START_X, PLAYER_ONE_START_Y,
-	PLAYER_TWO_START_X, PLAYER_TWO_START_Y,
-	BALL1_START_X + 15, BALL1_START_Y,
+	PLAYER_ONE_START_X + 100, PLAYER_ONE_START_Y,
+	PLAYER_TWO_START_X - 100, PLAYER_TWO_START_Y,
+	BALL1_START_X + 15, 35 + 33 + 1,
 	//walls
-	3, 3, 33, 951,
-	2, 44, 423, 33,
-	3, 474, 33, 951,
+	45, 35, 33, 870, //celing
+	45, 454, 43, 870, //ground
+	2, 44, 423, 33, //walls
 	920, 42, 425, 33,
 	//inside
-	462, 370, 100, 32
+	462, 135, 215, 32
 };
 
 
 //=== game text ===
-#define REPLAY_TEXT "INSTANT REPLAY"
+//#define REPLAY_TEXT "INSTANT REPLAY"
 
 #define FPS_TEXT "FPS"
 
 #define END_TEXT_TIE "TIE"
-#define END_TEXT_PLAYER1 "PLAYER 1 WINS"
-#define END_TEXT_PLAYER2 "PLAYER 2 WINS"
+#define END_TEXT_WIN "WIN TO PLAYER "
+#define END_TEXT_TIMEOUT_WIN "TIMOUT WIN PLAYER "
+#define END_TEXT_PERFECT "PERFECT GAME PLAYER "
+
+#define GAME_CLOCK_X 300
+#define GAME_CLOCK_Y 10
+
+#define LOADING_TEXT_BASE "LOADING"
+#define LOADING_TEXT_SPRITES LOADING_TEXT_BASE " SPRITES" 
+#define LOADING_TEXT_SOUNDS  LOADING_TEXT_BASE " SOUNDS"
+#define LOADING_TEXT_MUSIC  LOADING_TEXT_BASE " MUSIC"
+#define LOADING_TEXT_X 20
+#define LOADING_TEXT_Y LOADING_TEXT_X
+
+#define TEXT_AI_OFF "AI OFF FOR PLAYER "
+#define TEXT_AI_EASY "EASY AI FOR PLAYER "
+#define TEXT_AI_MEDIUM "MEDIUM AI FOR PLAYER "
+#define TEXT_AI_HARD "HARD AI FOR PLAYER "
+#define TEXT_AI_FETCH "FETCH AI FOR PLAYER "
+
+#define MAP_NAME_DEBUG "MAP DEBUG"
+#define MAP_NAME_EMPTY "MAP EMPTY"
+#define MAP_NAME_LINE "MAP CROSSING THE LINE"
+
+//text log screen
+#define TEXT_LOG_CHARS 255 //max chars in message
+#define TEXT_LOG_LINES 5 //max lines on screen
+#define TEXT_LOG_TIME 120 //frames on screen
+#define TEXT_LOG_X 300
+#define TEXT_LOG_Y 50
+#define TEXT_LOG_Y_BUFFER 4

@@ -70,54 +70,6 @@ SDL_Rect BoxToRec(const boxWorldSpace * const testbox) {
 	return returnRec;
 }
 
-//also loads background sprite sheet
-void LoadSprites(void) {
-
-	SDL_Surface* const SpriteBufferSur = IMG_Load(SPRITE_FILE);
-	SDL_Surface* const TextBigBufferSur = IMG_Load(SPRITE_TEXTBIG_FILE);
-	SDL_Surface* const TextSmallBufferSur = IMG_Load(SPRITE_TEXTSMALL_FILE);
-	SDL_Surface* const BackgroundBufferSur = IMG_Load(BACKGROUND_FILE);
-	
-
-	if (NULL == SpriteBufferSur) {
-		printf("Failed to load \n" SPRITE_FILE);
-		assert(false);
-	}
-	if (NULL == TextBigBufferSur) {
-		printf("Failed to load \n" SPRITE_TEXTBIG_FILE);
-		assert(false);
-	}
-	if (NULL == TextSmallBufferSur) {
-		printf("Failed to load \n" SPRITE_TEXTSMALL_FILE);
-		assert(false);
-	}
-	if (NULL == BackgroundBufferSur) {
-		printf("Failed to load \n" BACKGROUND_FILE);
-		assert(false);
-	}
-
-
-	spriteTex = SDL_CreateTextureFromSurface(mainRenderer, SpriteBufferSur);
-	spriteTextTexBig = SDL_CreateTextureFromSurface(mainRenderer, TextBigBufferSur);
-	spriteTextTexSmall = SDL_CreateTextureFromSurface(mainRenderer, TextSmallBufferSur);
-	backgrounds = SDL_CreateTextureFromSurface(mainRenderer, BackgroundBufferSur);
-
-
-	if (NULL == spriteTex 
-		|| NULL == spriteTextTexBig 
-		|| NULL == spriteTextTexSmall
-		|| NULL == backgrounds) {
-		printf("%s\n", SDL_GetError());
-		assert(false);
-	}
-
-
-	SDL_FreeSurface(SpriteBufferSur);
-	SDL_FreeSurface(TextBigBufferSur);
-	SDL_FreeSurface(TextSmallBufferSur);
-	SDL_FreeSurface(BackgroundBufferSur);
-}
-
 void DrawBackground(const uint8_t mapIndex) {
 
 	if (mapIndex >= MAP_COUNT) {
@@ -129,6 +81,24 @@ void DrawBackground(const uint8_t mapIndex) {
 #endif
 	}
 
+	int32_t xOffset = 0;
+	static uint8_t backgroundShakeIndex = 0;
+
+	//screen shake
+	if (gs.backgroundShakeRate != 0) {
+
+		if (gs.backgroundShakeRate <= BACKGROUND_SHAKE_DECAY_RATE) {
+			gs.backgroundShakeRate = 0;
+			backgroundShakeIndex = 0;
+		}
+		else {
+			backgroundShakeIndex += gs.backgroundShakeRate;
+			gs.backgroundShakeRate -= BACKGROUND_SHAKE_DECAY_RATE;
+		}
+
+		xOffset = SIN_TABLE[backgroundShakeIndex] / BACKGROUND_SHAKE_DIV;
+	}
+
 	SDL_Rect SrcR;
 	SrcR.x = 0;
 	SrcR.y = (int)mapIndex * BASE_RES_HEIGHT;
@@ -136,10 +106,14 @@ void DrawBackground(const uint8_t mapIndex) {
 	SrcR.w = BASE_RES_WIDTH;
 
 	SDL_Rect DestR;
-	DestR.x = 0;
+	DestR.x = xOffset;
 	DestR.y = 0;
 	DestR.h = BASE_RES_HEIGHT;
 	DestR.w = BASE_RES_WIDTH;
+
+	//transprnt test debug
+	//SDL_SetTextureBlendMode(backgrounds, SDL_BLENDMODE_BLEND);
+	//SDL_SetTextureAlphaMod(backgrounds, 100);
 
 	SDL_RenderCopyEx(mainRenderer, backgrounds, &SrcR, &DestR, 0, NULL, SDL_FLIP_NONE);
 }
@@ -152,10 +126,13 @@ void PrepRendering(void) {
 		printf("%s\n", SDL_GetError());
 		assert(false);
 	}
-	
+
+}
+
+void ClearScreenSoildColor(void) {
 	//clear the screen
 	//if (SDL_SetRenderDrawColor(mainRenderer, 200, 200, 200, 0xFF) != 0) { //light gray
-	if (SDL_SetRenderDrawColor(mainRenderer, 180, 180, 180, 0xFF) != 0) {
+	if (SDL_SetRenderDrawColor(mainRenderer, 40, 40, 40, 0xFF) != 0) { //near black
 		printf("%s\n", SDL_GetError());
 		assert(false);
 	}
@@ -164,11 +141,20 @@ void PrepRendering(void) {
 		printf("%s\n", SDL_GetError());
 		assert(false);
 	}
-
 }
 
 //x and y are not fixpoint
 void DrawText(uint16_t x, uint16_t y, const bool big, const char* text) {
+
+	if (text == NULL) {
+#ifdef NDEBUG
+		return;
+#else
+		printf("null text DrawText \n");
+		assert(false);
+#endif
+	}
+
 	const uint16_t xStart = x;
 	const uint16_t hight = big ? SPRITE_HEIGHT : SPRITE_TEXTSMALL_HEIGHT;
 	const uint16_t width = big ? SPRITE_WIDTH : SPRITE_TEXTSMALL_WIDTH;
@@ -203,6 +189,16 @@ void DrawText(uint16_t x, uint16_t y, const bool big, const char* text) {
 
 //not in fixed point
 void DrawTextNumberAppend(const uint16_t x, const uint16_t y, const bool big, const char* text, int32_t number) {
+	
+	if (text == NULL) {
+#ifdef NDEBUG
+		return;
+#else
+		printf("null text DrawTextNumberAppend \n");
+		assert(false);
+#endif
+	}
+	
 	//draw text part
 	DrawText(x, y, big, text);
 	
@@ -355,6 +351,142 @@ void DrawRenderToScreen(void) {
 	//screen present
 	SDL_RenderPresent(mainRenderer);
 }
+
+void DrawTextStandAlone(const uint16_t x, const uint16_t y, const char* text) {
+	//only call once you have loaded the small font
+	//used to draw text to the screen doing the full render cycle, usefull for showing text during loading
+	PrepRendering();
+	DrawText(x, y, false, text);
+	DrawRenderToScreen();
+}
+
+//note if the number is zero it will not draw it
+void LogTextScreen(const char * const text, const int32_t number) {
+	for (uint8_t i = 0; i < TEXT_LOG_LINES; ++i) {
+		//find a open space
+		if (textLogBuffer[i].timer == 0) {
+			//copy number over
+			textLogBuffer[i].number = number;
+			//copy text over
+			for (uint8_t i2 = 0; i2 < TEXT_LOG_CHARS && text[i2] != 0; ++i2) {
+				textLogBuffer[i].text[i2] = text[i2];
+			}
+			//set the timer
+			textLogBuffer[i].timer = TEXT_LOG_TIME;
+			break;
+			//end of copy text
+		}
+		//end of open space
+	}
+}
+
+void LogTextScreenTickTimers(void) {
+	for (uint8_t i = 0; i < TEXT_LOG_LINES; ++i) {
+		//find timers that need to be ticked
+		if (textLogBuffer[i].timer != 0) {
+			
+			textLogBuffer[i].timer--;
+
+			//check if that was the last tic
+			if (0 == textLogBuffer[i].timer) {
+				//zero out number
+				textLogBuffer[i].number = 0;
+				//zero out text
+				for (uint8_t i2 = 0; i2 < TEXT_LOG_CHARS; ++i2) {
+					textLogBuffer[i].text[i2] = 0;
+				}
+			}
+			//end of last tick
+
+		}
+		//end finding timers
+	}
+}
+
+void LogTextScreenDraw(void) {
+	uint16_t texty = TEXT_LOG_Y;
+
+	for (uint8_t i = 0; i < TEXT_LOG_LINES; ++i) {
+		//find text to draw
+		if (textLogBuffer[i].timer != 0) {
+			
+			//draw text
+			if (textLogBuffer[i].number == 0) {
+				DrawText(TEXT_LOG_X, texty, false, textLogBuffer[i].text);
+			}
+			else {
+				DrawTextNumberAppend(TEXT_LOG_X, texty, false, textLogBuffer[i].text, textLogBuffer[i].number);
+			}
+
+			texty += SPRITE_TEXTSMALL_HEIGHT + TEXT_LOG_Y_BUFFER;
+		}
+	}
+}
+
+
+//also loads background sprite sheet
+void LoadSprites(void) {
+
+	//small font (load first for text support)
+	char* tmpDir = BufferStringMakeBaseDir(SPRITE_TEXTSMALL_FILE);
+	SDL_Surface* const TextSmallBufferSur = IMG_Load(tmpDir);
+	if (NULL == TextSmallBufferSur) {
+		printf("Failed to load %s\n", tmpDir);
+		assert(false);
+	}
+	spriteTextTexSmall = SDL_CreateTextureFromSurface(mainRenderer, TextSmallBufferSur);
+	if (NULL == spriteTextTexSmall) {
+		printf("%s\n", SDL_GetError());
+		assert(false);
+	}
+	//draw loading screen
+	ClearScreenSoildColor();
+	DrawTextStandAlone(LOADING_TEXT_X, LOADING_TEXT_Y, LOADING_TEXT_SPRITES);
+
+
+	//player sprites
+	tmpDir = BufferStringMakeBaseDir(SPRITE_FILE);
+	SDL_Surface* const SpriteBufferSur = IMG_Load(tmpDir);
+	if (NULL == SpriteBufferSur) {
+		printf("Failed to load %s\n", tmpDir);
+		assert(false);
+	}
+	//larg font
+	tmpDir = BufferStringMakeBaseDir(SPRITE_TEXTBIG_FILE);
+	SDL_Surface* const TextBigBufferSur = IMG_Load(tmpDir);
+	if (NULL == TextBigBufferSur) {
+		printf("Failed to load %s\n", tmpDir);
+		assert(false);
+	}
+
+	//backgrounds
+	tmpDir = BufferStringMakeBaseDir(BACKGROUND_FILE);
+	SDL_Surface* const BackgroundBufferSur = IMG_Load(tmpDir);
+	if (NULL == BackgroundBufferSur) {
+		printf("Failed to load %s\n", tmpDir);
+		assert(false);
+	}
+
+	//make textures
+	spriteTex = SDL_CreateTextureFromSurface(mainRenderer, SpriteBufferSur);
+	spriteTextTexBig = SDL_CreateTextureFromSurface(mainRenderer, TextBigBufferSur);
+	backgrounds = SDL_CreateTextureFromSurface(mainRenderer, BackgroundBufferSur);
+
+	if (NULL == spriteTex
+		|| NULL == spriteTextTexBig
+		//|| NULL == spriteTextTexSmall
+		|| NULL == backgrounds) {
+		printf("%s\n", SDL_GetError());
+		assert(false);
+	}
+
+
+	SDL_FreeSurface(SpriteBufferSur);
+	SDL_FreeSurface(TextBigBufferSur);
+	SDL_FreeSurface(TextSmallBufferSur);
+	SDL_FreeSurface(BackgroundBufferSur);
+}
+
 
 //note: this also closes all of SDL
 void ShutdownWindow(void) {

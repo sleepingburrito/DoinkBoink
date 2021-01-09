@@ -110,7 +110,7 @@ void UpdateKeyStates(void) {
 			}
 			//rewind
 			if (keyboard[KEY_DEBUG_REWIND]) {
-				debugReinitJoy = true;
+				debugRewind = true;
 			}
 			//switch maps
 			if (keyboard[KEY_DEBUG_CHANGE_MAP]) {
@@ -180,7 +180,7 @@ void UpdateKeyStates(void) {
 				}
 				//dodge
 				if (SDL_JoystickGetButton(joyPads[i], i ? P2_PAD_BUTTON_DODGE : P1_PAD_BUTTON_DODGE)
-					|| SDL_JoystickGetAxis(joyPads[i], i ? P2_PAD_BUTTON_DODGE_ALT : P1_PAD_BUTTON_DODGE_ALT) > tmpDeadzon) {
+					|| SDL_JoystickGetButton(joyPads[i], i ? P2_PAD_BUTTON_DODGE_ALT : P1_PAD_BUTTON_DODGE_ALT)) {
 					FLAG_SET(tempState, PAD_DODGE);
 				}
 				//start 
@@ -213,28 +213,7 @@ void UpdateKeyStates(void) {
 					}
 				}//end of debug hold
 
-				//AI fight debug
-				if (debugGard && FLAG_TEST(tempState, PAD_JUMP)) {
-					if (FLAG_TEST(gs.players[i].AI, AI_ENABLED)) {
-						FLAG_ZERO(gs.players[i].AI, AI_ENABLED);
-					}
-					else {
-						FLAG_SET(gs.players[i].AI, AI_ENABLED);
-					}
-					pauseIoTimer = BLOCK_ALL_IO_TIME;
-				}
-				//AI fetch debug
-				if (debugGard && FLAG_TEST(tempState, PAD_RUN)) {
-					if (FLAG_TEST(gs.players[i].AI, AI_FETCH)) {
-						FLAG_ZERO(gs.players[i].AI, AI_ENABLED);
-						FLAG_ZERO(gs.players[i].AI, AI_FETCH);
-					}
-					else {
-						FLAG_SET(gs.players[i].AI, AI_ENABLED);
-						FLAG_SET(gs.players[i].AI, AI_FETCH);
-					}
-					pauseIoTimer = BLOCK_ALL_IO_TIME;
-				}
+
 
 			}//end of joypad loops
 
@@ -246,6 +225,56 @@ void UpdateKeyStates(void) {
 				else {
 					screenStateSavePause = screen;
 					screen = SCREEN_STATE_GAME_PAUSED;
+				}
+				pauseIoTimer = BLOCK_ALL_IO_TIME;
+			}
+
+			//AI fight debug
+			if (debugGard && FLAG_TEST(tempState, PAD_JUMP)) {
+
+				++gs.settingsAi[i];
+				if (gs.settingsAi[i] >= AI_SETTINGS_COUNT) {
+					gs.settingsAi[i] = 0;
+				}
+
+				const uint8_t playerNumTmp = i + 1;
+
+				switch (gs.settingsAi[i])
+				{
+				case AI_SET_OFF:
+					LogTextScreen(TEXT_AI_OFF, playerNumTmp);
+					break;
+
+				case AI_SET_EASY:
+					LogTextScreen(TEXT_AI_EASY, playerNumTmp);
+					break;
+
+				case AI_SET_MEDIUM:
+					LogTextScreen(TEXT_AI_MEDIUM, playerNumTmp);
+					break;
+
+				case AI_SET_HARD:
+					LogTextScreen(TEXT_AI_HARD, playerNumTmp);
+					break;
+
+				case AI_SET_FETCH:
+					LogTextScreen(TEXT_AI_FETCH, playerNumTmp);
+					break;
+				}
+
+				pauseIoTimer = BLOCK_ALL_IO_TIME;
+
+			}
+
+			//AI fetch debug
+			if (debugGard && FLAG_TEST(tempState, PAD_RUN)) {
+				if (FLAG_TEST(gs.players[i].AI, AI_FETCH)) {
+					FLAG_ZERO(gs.players[i].AI, AI_ENABLED);
+					FLAG_ZERO(gs.players[i].AI, AI_FETCH);
+				}
+				else {
+					FLAG_SET(gs.players[i].AI, AI_ENABLED);
+					FLAG_SET(gs.players[i].AI, AI_FETCH);
 				}
 				pauseIoTimer = BLOCK_ALL_IO_TIME;
 			}

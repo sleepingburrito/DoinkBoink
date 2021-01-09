@@ -64,3 +64,9 @@ typedef struct {
 	int8_t timer;
 	bool player2colors;
 }baseParticle;
+
+typedef struct {
+	uint8_t timer;
+	char text[TEXT_LOG_CHARS + 1]; //extra one to null term
+	int32_t number;
+}textLogBase;

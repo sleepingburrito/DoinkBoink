@@ -18,6 +18,7 @@ uint8_t Rng8(void) {
 			+ BRAKES_FRICTION[gs.spriteTimer]
 			+ AIR_FRICTION[gs.rngSeed]
 			+ GROUND_FRICTION[gs.spriteTimer]
+			+ (uint8_t)SIN_TABLE[(uint8_t)(gs.mapIndex << 4)]
 			);
 }
 

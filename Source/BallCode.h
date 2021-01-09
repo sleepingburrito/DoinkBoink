@@ -204,6 +204,9 @@ void BallInsidePlayer(ballBase* const ball) {
 
 			//sound
 			PlaySoundEffect(SOUND_EFFECT_HITBONG);
+
+			//screen shake
+			gs.backgroundShakeRate = BACKGROUND_SHAKE_START_RATE;
 		}
 
 		//bounce off player

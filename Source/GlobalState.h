@@ -16,6 +16,10 @@ bool updateGameLogic = false; //used by timing tools in main to know when to upd
 bool drawFpsCounter = true; //safe set this if you wish to have a fps counter
 
 uint32_t WatchDogFrameCount = 0; //monitored by a watch dog
+
+//settings
+bool disableGameTimer = true; //set these to disable these features
+bool disableGameScore = false;
 //
 //end of main.h
 
@@ -51,6 +55,9 @@ SDL_Texture* spriteTex = NULL;
 SDL_Texture* spriteTextTexBig = NULL;
 SDL_Texture* spriteTextTexSmall = NULL;
 SDL_Texture* backgrounds = NULL;
+
+//log text 
+textLogBase textLogBuffer[TEXT_LOG_LINES];
 //
 
 //sound.h
@@ -81,22 +88,33 @@ gameScreenState screenStateSavePause; //where the screen was befor it paused
 //main gameplay state
 typedef struct {
 	boxWorldSpace map[MAP_MAX_BLOCKS];
+	//map data
 	uint8_t mapBoxCount;
 	uint8_t mapIndex; //read only, set by loadmap
 	uint16_t startSpawnMap[MAP_SPAWN_COUNT];
 
+	//global timers
+	uint16_t gameClock; //used to time game matches
 	timer worldTimers[WOLD_TIMER_COUNT];
-	uint8_t spriteTimer;
 
+	//graphics
+	uint8_t spriteTimer;
+	baseParticle particles[PARTICLES_MAX];
+	uint8_t backgroundShakeRate; //set this to BACKGROUND_SHAKE_START_RATE shake background
+
+	//rng
 	uint8_t rngSeed;
 
+	//game objects
 	playerBase players[PLAYER_COUNT];
 	ballBase ball;
-	
-	baseParticle particles[PARTICLES_MAX];
 
-	//used by gameplay, can be paused (for rewind or game pause)
+	//AI
+	uint8_t settingsAi[PLAYER_COUNT]; //turn on the player AI with settings these
+	
+	//IOused by gameplay, can be paused (for rewind or game pause)
 	flags padIOReadOnly[IO_STATE_COUNT_MAX]; 
+
 }mainState;
 mainState gs;
 
@@ -105,8 +123,9 @@ mainState gs;
 mainState tap[UINT8_MAX + 1];
 uint8_t tapFrame = 0;
 uint8_t tapFrameLast = 0; //go back to last frame when return back to game
+uint8_t recordInitTime = 0; //only used for the first few seconds to make sure you filled the record buffer
 //replay section
-uint8_t replayStartTimer = 0;
+uint8_t replayStartTimer = 0; //also used to tell in other parts of the code that the game has ended
 uint8_t replaySlowMo = 0;
 //
 //end of rewind.h

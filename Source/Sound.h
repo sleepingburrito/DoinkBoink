@@ -8,6 +8,7 @@
 #include "typedefs.h"
 #include "Tools.h"
 #include "GlobalState.h"
+#include "Graphics.h"
 
 void InitSound(void) {
     //init SDL_mixer
@@ -48,122 +49,185 @@ void InitSound(void) {
 
 void LoadSounds(void) {
     //===sound effects===
-    if (NULL == (gameSoundEffects[SOUND_EFFECT_TEST] = Mix_LoadWAV(EFFECTS_TEST_FILE))) {
+    ClearScreenSoildColor();
+    DrawTextStandAlone(LOADING_TEXT_X, LOADING_TEXT_Y, LOADING_TEXT_SOUNDS);
+
+    char * tmpDir = BufferStringMakeBaseDir(EFFECTS_TEST_FILE);
+    if (NULL == (gameSoundEffects[SOUND_EFFECT_TEST] = Mix_LoadWAV(tmpDir))) {
         printf("Mix_LoadWAV: %s\n", Mix_GetError());
         assert(false);
     }
-    if (NULL == (gameSoundEffects[SOUND_EFFECT_BELLRING] = Mix_LoadWAV(EFFECTS_BELLRING_FILE))) {
+
+    tmpDir = BufferStringMakeBaseDir(EFFECTS_BELLRING_FILE);
+    if (NULL == (gameSoundEffects[SOUND_EFFECT_BELLRING] = Mix_LoadWAV(tmpDir))) {
         printf("Mix_LoadWAV: %s\n", Mix_GetError());
         assert(false);
     }
-    if (NULL == (gameSoundEffects[SOUND_EFFECT_BOOM] = Mix_LoadWAV(EFFECTS_BOOM_FILE))) {
+
+    tmpDir = BufferStringMakeBaseDir(EFFECTS_BOOM_FILE);
+    if (NULL == (gameSoundEffects[SOUND_EFFECT_BOOM] = Mix_LoadWAV(tmpDir))) {
         printf("Mix_LoadWAV: %s\n", Mix_GetError());
         assert(false);
     }
-    if (NULL == (gameSoundEffects[SOUND_EFFECT_BOUNCE1] = Mix_LoadWAV(EFFECTS_BOUNCE1_FILE))) {
+    
+    
+    tmpDir = BufferStringMakeBaseDir(EFFECTS_BOUNCE1_FILE);
+    if (NULL == (gameSoundEffects[SOUND_EFFECT_BOUNCE1] = Mix_LoadWAV(tmpDir))) {
         printf("Mix_LoadWAV: %s\n", Mix_GetError());
         assert(false);
     }
-    if (NULL == (gameSoundEffects[SOUND_EFFECT_BOUNCE2] = Mix_LoadWAV(EFFECTS_BOUNCE2_FILE))) {
+
+    tmpDir = BufferStringMakeBaseDir(EFFECTS_BOUNCE2_FILE);
+    if (NULL == (gameSoundEffects[SOUND_EFFECT_BOUNCE2] = Mix_LoadWAV(tmpDir))) {
         printf("Mix_LoadWAV: %s\n", Mix_GetError());
         assert(false);
     }
-    if (NULL == (gameSoundEffects[SOUND_EFFECT_BOUNCE3] = Mix_LoadWAV(EFFECTS_BOUNCE3_FILE))) {
+
+    tmpDir = BufferStringMakeBaseDir(EFFECTS_BOUNCE3_FILE);
+    if (NULL == (gameSoundEffects[SOUND_EFFECT_BOUNCE3] = Mix_LoadWAV(tmpDir))) {
         printf("Mix_LoadWAV: %s\n", Mix_GetError());
         assert(false);
     }
-    if (NULL == (gameSoundEffects[SOUND_EFFECT_CLICK] = Mix_LoadWAV(EFFECTS_CLICK_FILE))) {
+
+    tmpDir = BufferStringMakeBaseDir(EFFECTS_CLICK_FILE);
+    if (NULL == (gameSoundEffects[SOUND_EFFECT_CLICK] = Mix_LoadWAV(tmpDir))) {
         printf("Mix_LoadWAV: %s\n", Mix_GetError());
         assert(false);
     }
-    if (NULL == (gameSoundEffects[SOUND_EFFECT_CLICKCLOCK] = Mix_LoadWAV(EFFECTS_CLICKCLOCK_FILE))) {
+
+    tmpDir = BufferStringMakeBaseDir(EFFECTS_CLICKCLOCK_FILE);
+    if (NULL == (gameSoundEffects[SOUND_EFFECT_CLICKCLOCK] = Mix_LoadWAV(tmpDir))) {
         printf("Mix_LoadWAV: %s\n", Mix_GetError());
         assert(false);
     }
-    if (NULL == (gameSoundEffects[SOUND_EFFECT_DULESQEEK] = Mix_LoadWAV(EFFECTS_DULESQEEK_FILE))) {
+
+    tmpDir = BufferStringMakeBaseDir(EFFECTS_DULESQEEK_FILE);
+    if (NULL == (gameSoundEffects[SOUND_EFFECT_DULESQEEK] = Mix_LoadWAV(tmpDir))) {
         printf("Mix_LoadWAV: %s\n", Mix_GetError());
         assert(false);
     }
-    if (NULL == (gameSoundEffects[SOUND_EFFECT_HITBONG] = Mix_LoadWAV(EFFECTS_HITBONG_FILE))) {
+
+    tmpDir = BufferStringMakeBaseDir(EFFECTS_HITBONG_FILE);
+    if (NULL == (gameSoundEffects[SOUND_EFFECT_HITBONG] = Mix_LoadWAV(tmpDir))) {
         printf("Mix_LoadWAV: %s\n", Mix_GetError());
         assert(false);
     }
-    if (NULL == (gameSoundEffects[SOUND_EFFECT_PITTERPATTER] = Mix_LoadWAV(EFFECTS_PITTERPATTER_FILE))) {
+
+    tmpDir = BufferStringMakeBaseDir(EFFECTS_PITTERPATTER_FILE);
+    if (NULL == (gameSoundEffects[SOUND_EFFECT_PITTERPATTER] = Mix_LoadWAV(tmpDir))) {
         printf("Mix_LoadWAV: %s\n", Mix_GetError());
         assert(false);
     }
-    if (NULL == (gameSoundEffects[SOUND_EFFECT_QUICKPITTERPATTER] = Mix_LoadWAV(EFFECTS_QUICKPITTERPATTER_FILE))) {
+
+    tmpDir = BufferStringMakeBaseDir(EFFECTS_QUICKPITTERPATTER_FILE);
+    if (NULL == (gameSoundEffects[SOUND_EFFECT_QUICKPITTERPATTER] = Mix_LoadWAV(tmpDir))) {
         printf("Mix_LoadWAV: %s\n", Mix_GetError());
         assert(false);
     }
-    if (NULL == (gameSoundEffects[SOUND_EFFECT_REVERSEDHIT] = Mix_LoadWAV(EFFECTS_REVERSEDHIT_FILE))) {
+
+    tmpDir = BufferStringMakeBaseDir(EFFECTS_REVERSEDHIT_FILE);
+    if (NULL == (gameSoundEffects[SOUND_EFFECT_REVERSEDHIT] = Mix_LoadWAV(tmpDir))) {
         printf("Mix_LoadWAV: %s\n", Mix_GetError());
         assert(false);
     }
-    if (NULL == (gameSoundEffects[SOUND_EFFECT_SQEEKIN] = Mix_LoadWAV(EFFECTS_SQEEKIN_FILE))) {
+
+    tmpDir = BufferStringMakeBaseDir(EFFECTS_SQEEKIN_FILE);
+    if (NULL == (gameSoundEffects[SOUND_EFFECT_SQEEKIN] = Mix_LoadWAV(tmpDir))) {
         printf("Mix_LoadWAV: %s\n", Mix_GetError());
         assert(false);
     }
-    if (NULL == (gameSoundEffects[SOUND_EFFECT_SQEEKOUTFAST] = Mix_LoadWAV(EFFECTS_SQEEKOUTFAST_FILE))) {
+
+    tmpDir = BufferStringMakeBaseDir(EFFECTS_SQEEKOUTFAST_FILE);
+    if (NULL == (gameSoundEffects[SOUND_EFFECT_SQEEKOUTFAST] = Mix_LoadWAV(tmpDir))) {
         printf("Mix_LoadWAV: %s\n", Mix_GetError());
         assert(false);
     }
-    if (NULL == (gameSoundEffects[SOUND_EFFECT_SQEEKSLOW] = Mix_LoadWAV(EFFECTS_SQEEKSLOW_FILE))) {
+
+    tmpDir = BufferStringMakeBaseDir(EFFECTS_SQEEKSLOW_FILE);
+    if (NULL == (gameSoundEffects[SOUND_EFFECT_SQEEKSLOW] = Mix_LoadWAV(tmpDir))) {
         printf("Mix_LoadWAV: %s\n", Mix_GetError());
         assert(false);
     }
-    if (NULL == (gameSoundEffects[SOUND_EFFECT_WORBLE] = Mix_LoadWAV(EFFECTS_WORBLE_FILE))) {
+
+    tmpDir = BufferStringMakeBaseDir(EFFECTS_WORBLE_FILE);
+    if (NULL == (gameSoundEffects[SOUND_EFFECT_WORBLE] = Mix_LoadWAV(tmpDir))) {
         printf("Mix_LoadWAV: %s\n", Mix_GetError());
         assert(false);
     }
-    if (NULL == (gameSoundEffects[SOUND_EFFECT_AIRHORN] = Mix_LoadWAV(EFFECTS_AIRHORN_FILE))) {
+
+    tmpDir = BufferStringMakeBaseDir(EFFECTS_AIRHORN_FILE);
+    if (NULL == (gameSoundEffects[SOUND_EFFECT_AIRHORN] = Mix_LoadWAV(tmpDir))) {
         printf("Mix_LoadWAV: %s\n", Mix_GetError());
         assert(false);
     }
 
 
     //===music===
-    if (NULL == (gameMusic[SOUND_MUSIC_01] = Mix_LoadMUS(MUSIC_01_FILE))) {
+    ClearScreenSoildColor();
+    DrawTextStandAlone(LOADING_TEXT_X, LOADING_TEXT_Y, LOADING_TEXT_MUSIC);
+
+    tmpDir = BufferStringMakeBaseDir(MUSIC_01_FILE);
+    if (NULL == (gameMusic[SOUND_MUSIC_01] = Mix_LoadMUS(tmpDir))) {
         printf("Mix_LoadMUS: %s\n", Mix_GetError());
         assert(false);
     }
-    if (NULL == (gameMusic[SOUND_MUSIC_02] = Mix_LoadMUS(MUSIC_02_FILE))) {
+
+    tmpDir = BufferStringMakeBaseDir(MUSIC_02_FILE);
+    if (NULL == (gameMusic[SOUND_MUSIC_02] = Mix_LoadMUS(tmpDir))) {
         printf("Mix_LoadMUS: %s\n", Mix_GetError());
         assert(false);
     }
-    if (NULL == (gameMusic[SOUND_MUSIC_03] = Mix_LoadMUS(MUSIC_03_FILE))) {
+
+    tmpDir = BufferStringMakeBaseDir(MUSIC_03_FILE);
+    if (NULL == (gameMusic[SOUND_MUSIC_03] = Mix_LoadMUS(tmpDir))) {
         printf("Mix_LoadMUS: %s\n", Mix_GetError());
         assert(false);
     }
-    if (NULL == (gameMusic[SOUND_MUSIC_04] = Mix_LoadMUS(MUSIC_04_FILE))) {
+
+    tmpDir = BufferStringMakeBaseDir(MUSIC_04_FILE);
+    if (NULL == (gameMusic[SOUND_MUSIC_04] = Mix_LoadMUS(tmpDir))) {
         printf("Mix_LoadMUS: %s\n", Mix_GetError());
         assert(false);
     }
-    if (NULL == (gameMusic[SOUND_MUSIC_05] = Mix_LoadMUS(MUSIC_05_FILE))) {
+
+    tmpDir = BufferStringMakeBaseDir(MUSIC_05_FILE);
+    if (NULL == (gameMusic[SOUND_MUSIC_05] = Mix_LoadMUS(tmpDir))) {
         printf("Mix_LoadMUS: %s\n", Mix_GetError());
         assert(false);
     }
-    if (NULL == (gameMusic[SOUND_MUSIC_06] = Mix_LoadMUS(MUSIC_06_FILE))) {
+
+    tmpDir = BufferStringMakeBaseDir(MUSIC_06_FILE);
+    if (NULL == (gameMusic[SOUND_MUSIC_06] = Mix_LoadMUS(tmpDir))) {
         printf("Mix_LoadMUS: %s\n", Mix_GetError());
         assert(false);
     }
-    if (NULL == (gameMusic[SOUND_MUSIC_07] = Mix_LoadMUS(MUSIC_07_FILE))) {
+
+    tmpDir = BufferStringMakeBaseDir(MUSIC_07_FILE);
+    if (NULL == (gameMusic[SOUND_MUSIC_07] = Mix_LoadMUS(tmpDir))) {
         printf("Mix_LoadMUS: %s\n", Mix_GetError());
         assert(false);
     }
-    if (NULL == (gameMusic[SOUND_MUSIC_08] = Mix_LoadMUS(MUSIC_08_FILE))) {
+
+    tmpDir = BufferStringMakeBaseDir(MUSIC_08_FILE);
+    if (NULL == (gameMusic[SOUND_MUSIC_08] = Mix_LoadMUS(tmpDir))) {
         printf("Mix_LoadMUS: %s\n", Mix_GetError());
         assert(false);
     }
-    if (NULL == (gameMusic[SOUND_MUSIC_09] = Mix_LoadMUS(MUSIC_09_FILE))) {
+
+    tmpDir = BufferStringMakeBaseDir(MUSIC_09_FILE);
+    if (NULL == (gameMusic[SOUND_MUSIC_09] = Mix_LoadMUS(tmpDir))) {
         printf("Mix_LoadMUS: %s\n", Mix_GetError());
         assert(false);
     }
-    if (NULL == (gameMusic[SOUND_MUSIC_10] = Mix_LoadMUS(MUSIC_10_FILE))) {
+
+    tmpDir = BufferStringMakeBaseDir(MUSIC_10_FILE);
+    if (NULL == (gameMusic[SOUND_MUSIC_10] = Mix_LoadMUS(tmpDir))) {
         printf("Mix_LoadMUS: %s\n", Mix_GetError());
         assert(false);
     }
-    if (NULL == (gameMusic[SOUND_MUSIC_11] = Mix_LoadMUS(MUSIC_11_FILE))) {
+
+    tmpDir = BufferStringMakeBaseDir(MUSIC_11_FILE);
+    if (NULL == (gameMusic[SOUND_MUSIC_11] = Mix_LoadMUS(tmpDir))) {
         printf("Mix_LoadMUS: %s\n", Mix_GetError());
         assert(false);
     }

@@ -158,7 +158,14 @@ void CatchPickupBall(playerBase* const player) {
 
 			//give ball to player
 			BallGiveToPlayer(player->playerFlags, ballInPlayer);
-			PlaySoundEffect(SOUND_EFFECT_SQEEKIN);
+
+			//sounds
+			if (FLAG_TEST(ballInPlayer->ballFlags, BALL_CHARGED)) {
+				PlaySoundEffect(SOUND_EFFECT_TEST); //changed parry
+			}
+			else {
+				PlaySoundEffect(SOUND_EFFECT_SQEEKIN); //normal catch
+			}
 
 			//give player steal protecthing
 			player->playerTimer[PLAYER_STEAL_PROTECTION_TIMER] = PLAYER_DODGE_PROTECTION_TIME;
@@ -447,19 +454,36 @@ void PlayerJump(playerBase* const player) {
 	const int8_t rngVelocityY = -(int8_t)RngMasked8(RNG_MASK_7);
 	const uint8_t rngTimer = 14 + RngMasked8(RNG_MASK_31);
 
+	//set if the player can wall jump when not on wall
+	if (FLAG_TEST(player->playerPhysics.physicsFlags, PHYSICS_IN_HORIZONTAL_WALL) && !FLAG_TEST(player->playerPhysics.physicsFlags, PHYSICS_ONGROUND)) {
+		player->playerTimer[PLAYER_WALLJUMP_TIMER] = PLAYER_WALL_JUMP_TIMER;
+
+		if (FLAG_TEST(player->playerFlags, PLAYER_FACING_RIGHT)) {
+			FLAG_SET(player->playerFlags, PLAYER_TROW_LEFT);
+		}
+		else {
+			FLAG_ZERO(player->playerFlags, PLAYER_TROW_LEFT);
+		}
+	}
+
+	//stun
 	if (player->playerTimer[PLAYER_STUN_TIMER] != 0) {
 		keysHeld = 0;
 		keysTap = 0;
 	}
+
 	//reff speed
 	speed* const speeds = player->playerPhysics.allSpeeds;
+	
 	//jump segment
 	if (FLAG_TEST(keysHeld, PAD_JUMP)) {
 		if (FLAG_TEST(player->playerPhysics.physicsFlags, PHYSICS_ONGROUND)) {
 			if (FLAG_TEST(player->playerFlags, PLAYER_DUCKING)) { //duck jump
+				speeds[SPEED_DOWN_INDEX] = 0;
 				AddUint8Capped(&speeds[SPEED_UP_INDEX], PLAYER_DUCK_JUMP);
 			}
 			else { //normal jump
+				speeds[SPEED_DOWN_INDEX] = 0;
 				AddUint8Capped(&speeds[SPEED_UP_INDEX], PLAYER_JUMP);
 			}
 			ParticleAdd(playerFeetX + playerFeetXRngOffset, playerFeetY, 0, rngVelocityY, 0, 0, SPRITE_INDEX_BIGSMOKE, rngTimer, FLAG_TEST(player->playerFlags, PLAYER_SECOND));
@@ -467,14 +491,21 @@ void PlayerJump(playerBase* const player) {
 		}
 		else if (FLAG_TEST(keysTap, PAD_JUMP))
 		{
-			if (FLAG_TEST(player->playerPhysics.physicsFlags, PHYSICS_IN_HORIZONTAL_WALL)) { //wall jumping
+			if (FLAG_TEST(player->playerPhysics.physicsFlags, PHYSICS_IN_HORIZONTAL_WALL) || player->playerTimer[PLAYER_WALLJUMP_TIMER] > 0) { //wall jumping
+				
+				//hspeed for jump
+				speeds[SPEED_DOWN_INDEX] = 0;
 				AddUint8Capped(&speeds[SPEED_UP_INDEX], PLAYER_WALL_JUMPV);
-				if (FLAG_TEST(player->playerFlags, PLAYER_FACING_RIGHT)) {
-					AddUint8Capped(&speeds[SPEED_LEFT_INDEX], PLAYER_WALL_JUMPH);
-				}
-				else {
+
+				//set jump
+				if (!FLAG_TEST(player->playerFlags, PLAYER_TROW_LEFT)) {
 					AddUint8Capped(&speeds[SPEED_RIGHT_INDEX], PLAYER_WALL_JUMPH);
 				}
+				else {
+					AddUint8Capped(&speeds[SPEED_LEFT_INDEX], PLAYER_WALL_JUMPH);
+				}
+
+				player->playerTimer[PLAYER_WALLJUMP_TIMER] = 0;
 				ParticleAdd(playerFeetX, playerFeetY, 0, rngVelocityY, 0, 0, SPRITE_INDEX_BIGSMOKE, rngTimer, FLAG_TEST(player->playerFlags, PLAYER_SECOND));
 				makeJumpSound = true;
 			}
@@ -496,10 +527,12 @@ void PlayerJump(playerBase* const player) {
 		} //end of jump tap
 	}//end of jump held
 
+	//sounds
 	if (makeJumpSound) {
 		PlaySoundEffect(SOUND_EFFECT_SQEEKSLOW);
 	}
 
+	//double jump reset
 	if (FLAG_TEST(player->playerPhysics.physicsFlags, PHYSICS_ONGROUND) || FLAG_TEST(player->playerPhysics.physicsFlags, PHYSICS_IN_HORIZONTAL_WALL)) {
 		FLAG_SET(player->playerFlags, PLAYER_HAS_DOUBLE_JUMP);
 	}
@@ -676,7 +709,7 @@ void PlayerMoveToAI(const playerBase* const player, uint16_t goalX, uint16_t goa
 	if (gs.mapIndex == MAP_DEBUG) {
 		//check if we are not on the same platfrom
 		if ((goalY < TO_FIXPOINT(BASE_RES_HEIGHT_HALF)) != (playerCenterY < TO_FIXPOINT(BASE_RES_HEIGHT_HALF))) {
-			goalX = goalX < TO_FIXPOINT(BASE_RES_HEIGHT_HALF) ? AI_MAP_DEBUG_PLATX_LEFT : AI_MAP_DEBUG_PLATX_RIGHT;
+			goalX = AI_MAP_DEBUG_PLATX_LEFT; // goalX < TO_FIXPOINT(BASE_RES_HEIGHT_HALF) ? AI_MAP_DEBUG_PLATX_LEFT : AI_MAP_DEBUG_PLATX_RIGHT;
 			goalY = AI_MAP_DEBUG_PLATY;
 		}
 	}
@@ -751,9 +784,6 @@ void PlayerAI(playerBase* const player) {
 #endif
 	}
 
-	//main ai start
-	if (!FLAG_TEST(player->AI, AI_ENABLED)) return;
-
 	//shotcuts to me
 	const uint8_t			myPlayerIndex		= FLAG_TEST(player->playerFlags, PLAYER_SECOND);
 	//const speed * const		playerSpeeds		= player->playerPhysics.allSpeeds;
@@ -784,8 +814,40 @@ void PlayerAI(playerBase* const player) {
 	flags*					keysTap					= &gs.padIOReadOnly[PADIO_INDEX(PAD_STATE_TAP, myPlayerIndex)];
 
 
-	//testing
-	//ParticleAdd(playerCenterX, playerCenterY, 0, 0, SPRITE_INDEX_BIGSMOKE, 2);
+	//set AI settings depending on gloable settings
+	uint8_t missRate = 0;
+	uint8_t trowTimerMask = 0;
+	
+	if (AI_SET_EASY == gs.settingsAi[myPlayerIndex]) {
+		FLAG_SET(player->AI, AI_ENABLED);
+		FLAG_ZERO(player->AI, AI_FETCH);
+		missRate = AI_MISS_RATE_MEDIUM;
+		trowTimerMask = AI_TROW_TIMER_MASK_MEDIUM;
+	}
+	else if (AI_SET_HARD == gs.settingsAi[myPlayerIndex]) {
+		FLAG_SET(player->AI, AI_ENABLED);
+		FLAG_ZERO(player->AI, AI_FETCH);
+		missRate = AI_MISS_RATE_HARD;
+		trowTimerMask = AI_MISS_RATE_HARD;
+	}
+	else if (AI_SET_MEDIUM == gs.settingsAi[myPlayerIndex]) {
+		FLAG_SET(player->AI, AI_ENABLED);
+		FLAG_ZERO(player->AI, AI_FETCH);
+		missRate = AI_MISS_RATE_MEDIUM;
+		trowTimerMask = AI_TROW_TIMER_MASK_MEDIUM;
+	}
+	else if (AI_SET_FETCH == gs.settingsAi[myPlayerIndex]){
+		FLAG_SET(player->AI, AI_ENABLED);
+		FLAG_SET(player->AI, AI_FETCH);
+	}
+	else {
+		FLAG_ZERO(player->AI, AI_ENABLED);
+		FLAG_ZERO(player->AI, AI_FETCH);
+	}
+
+
+	//main ai start
+	if (!FLAG_TEST(player->AI, AI_ENABLED)) return;
 
 	//fetch (needs to come first since it has a early return)
 	if (FLAG_TEST(player->AI, AI_FETCH)
@@ -820,7 +882,7 @@ void PlayerAI(playerBase* const player) {
 		const bool onBall = (otherPlayerHasBall && HitOtherPlayer != NULL) || (!otherPlayerHasBall && ballInPlayer != NULL);
 		
 		//grab for ball if able to
-		if (onBall && Rng8() < AI_MISS_RATE) {
+		if (onBall && Rng8() < missRate) {
 			FLAG_SET(*keysTap, PAD_ACTION);
 		}
 
@@ -836,58 +898,39 @@ void PlayerAI(playerBase* const player) {
 		}
 		else {
 
-			////run around randomly
-			//if (playerTimers[PLAYER_AI_NEW_WALK_LOC] == 0
-			//	|| DistancePart(playerCenterX, playerCenterY, player->GoalAIMove.x, player->GoalAIMove.y) < TO_FIXPOINT(POW2(AI_DISTANCE_NEW_WALK_LOC))) {
-			//	player->GoalAIMove.x = otherPlayerCenterX;
-			//	player->GoalAIMove.y = otherPlayerCenterY;
-			//	playerTimers[PLAYER_AI_NEW_WALK_LOC] = Rng8();
-			//	//attacking
-			//	if (playerTimers[PLAYER_ATTACK_TIMER] == 0) {
-			//		playerTimers[PLAYER_ATTACK_TIMER] = Rng8();
-			//	}
-			//}
-
 			//if not touching the player do so
 			if (HitOtherPlayer == NULL) {
 				player->GoalAIMove.x = otherPlayerCenterX;
 				player->GoalAIMove.y = otherPlayerCenterY;
 				PlayerMoveToAI(player, player->GoalAIMove.x, player->GoalAIMove.y, false);
 			}
+			else { //if toching the other player attack
+				player->GoalAIMove.x = otherPlayerCenterX - SPRITE_WIDTH + RngMasked8(RNG_MASK_63);
+			}
 
-			//player attack
+			//player attack start
 			if (!FLAG_TEST(player->AI, AI_FETCH)) {
 				if (playerTimers[PLAYER_AI_ATTACK_TIMER] == 0) {
 					//aim the ball
 					if (playerCenterX < otherPlayerCenterX) {
 						FLAG_SET(*keysTap, PAD_RIGHT);
-						//FLAG_SET(*keysHeld, PAD_RIGHT);
 					}
 					else {
 						FLAG_SET(*keysTap, PAD_LEFT);
-						//FLAG_SET(*keysHeld, PAD_LEFT);
 					}
-					//if (playerCenterY < otherPlayerCenterY) {
-					//	FLAG_SET(*keysTap, PAD_DOWN);
-					//	FLAG_SET(*keysHeld, PAD_DOWN);
-					//}
-					//else {
-					//	FLAG_SET(*keysTap, PAD_UP);
-					//	FLAG_SET(*keysHeld, PAD_UP);
-					//}
 					FLAG_SET(*keysTap, PAD_ACTION);
 					FLAG_SET(*keysHeld, PAD_ACTION);
 				}
 
-				if (playerTimers[PLAYER_AI_ATTACK_TIMER] != 0
-					&& playerTimers[PLAYER_CHARGE_TROW_TIMER] != 0) {
+				//player end attack
+				if (playerTimers[PLAYER_AI_ATTACK_TIMER] != 0 && playerTimers[PLAYER_CHARGE_TROW_TIMER] != 0) {
 					FLAG_SET(*keysTap, PAD_ACTION);
 					FLAG_SET(*keysHeld, PAD_ACTION);
 				}
 
 				//start attack timer
 				if (playerTimers[PLAYER_AI_ATTACK_TIMER] == 0) {
-					playerTimers[PLAYER_AI_ATTACK_TIMER] = Rng8() & AI_TROW_TIMER_MASK;
+					playerTimers[PLAYER_AI_ATTACK_TIMER] = Rng8() & trowTimerMask;
 				}
 			}//end of fetch block
 
@@ -1010,6 +1053,7 @@ void DrawPLayerDebug(const playerBase * const player) {
 	}
 }
 
+//also handles some sound effects
 void DrawPlayer(const playerBase* const player) {
 	const flags keysHeld = gs.padIOReadOnly[PADIO_INDEX(PAD_STATE_HELD, FLAG_TEST(player->playerFlags, PLAYER_SECOND))];
 
@@ -1100,7 +1144,7 @@ void DrawPlayer(const playerBase* const player) {
 				if (FLAG_TEST(keysHeld, PAD_RUN)) {
 					//running
 					index = SPRITE_INDEX_PLAYERRUN;
-					if (screen != SCREEN_STATE_INSTANT_REPLAY) {
+					if (screen == SCREEN_STATE_GAME) {
 						PlaySoundEffect(SOUND_EFFECT_QUICKPITTERPATTER);
 						playersRunningSound = true;
 					}
@@ -1108,7 +1152,7 @@ void DrawPlayer(const playerBase* const player) {
 				else {
 					//walking
 					index = SPRITE_INDEX_PLAYERWALK;
-					if (screen != SCREEN_STATE_INSTANT_REPLAY) {
+					if (screen == SCREEN_STATE_GAME) {
 						PlaySoundEffect(SOUND_EFFECT_PITTERPATTER);
 						playersWalkingSound = true;
 					}
@@ -1165,7 +1209,7 @@ void DrawPlayer(const playerBase* const player) {
 	}
 
 	//draw winning pose
-	if (otherPlayer->deathCount >= PLAYER_MAX_SCORE) {
+	if (replayStartTimer != 0 && otherPlayer->deathCount >= PLAYER_MAX_SCORE) {
 		index = SPRITE_INDEX_PLAYERHEADBOUNCH;
 	}
 
@@ -1194,12 +1238,29 @@ void DrawPlayer(const playerBase* const player) {
 
 }
 
+void DrawPlayers(void) {
+	for (uint8_t i = 0; i < PLAYER_COUNT; ++i) {
+		//DrawPLayerDebug(&gs.players[i]);
+		DrawPlayer(&gs.players[i]);
+	}
+}
+
+void DrawPlayersDebug(void) {
+	for (uint8_t i = 0; i < PLAYER_COUNT; ++i) {
+		DrawPLayerDebug(&gs.players[i]);
+	}
+}
+
+
+//-=-player scorring-=-
+
+//also draws the winning end game text
 void DrawScore(void) {
 	for (uint8_t i = 0; i < PLAYER_COUNT; ++i) {
 		const uint16_t x = i ? PLAYER1_DRAW_SCORE_X : PLAYER2_DRAW_SCORE_X;
 		const uint16_t y = i ? PLAYER1_DRAW_SCORE_Y : PLAYER2_DRAW_SCORE_Y;
 		bool blink = false;
-		
+
 		//draw smoke
 		if (gs.players[i].playerTimer[PLAYER_SPAWN_TIMER] > 0) {
 			if (Rng8() < 25) {
@@ -1214,29 +1275,21 @@ void DrawScore(void) {
 		}
 
 		//test draw keep away score
-		DrawTextNumberAppend(x, BASE_RES_HEIGHT - 32, false, "", gs.players[i].ballHeldCounter / 60);
+		//DrawTextNumberAppend(x, BASE_RES_HEIGHT - 32, false, "", gs.players[i].ballHeldCounter / 60);
 	}
 }
 
-void DrawPlayers(void) {
-	for (uint8_t i = 0; i < PLAYER_COUNT; ++i) {
-		//DrawPLayerDebug(&gs.players[i]);
-		DrawPlayer(&gs.players[i]);
-	}
-	DrawScore();
-}
-
-void DrawPlayersDebug(void) {
-	for (uint8_t i = 0; i < PLAYER_COUNT; ++i) {
-		DrawPLayerDebug(&gs.players[i]);
-	}
-}
-
-//also draws the winning end game text
 void CheckPlayersScores(void) {
 	
-	if ( (gs.players[PLAYER_ONE].deathCount >= PLAYER_MAX_SCORE || gs.players[PLAYER_TWO].deathCount >= PLAYER_MAX_SCORE)
-		&& replayStartTimer == 0) {
+	if ( 
+		(
+			gs.players[PLAYER_ONE].deathCount >= PLAYER_MAX_SCORE 
+			|| gs.players[PLAYER_TWO].deathCount >= PLAYER_MAX_SCORE
+			|| gs.gameClock == 0
+		)
+		&& replayStartTimer == 0 //this timer is also used to tell if the game has ended
+		&& !disableGameScore
+		) {
 
 		PlaySoundEffect(SOUND_EFFECT_AIRHORN);
 		replayStartTimer = REPLAY_START_IN; //start replay timer
@@ -1244,20 +1297,77 @@ void CheckPlayersScores(void) {
 }
 
 void DrawEndGameWinningText(void) {
-	if ((gs.spriteTimer & REPLAY_BLINK_MASK) || 0 == replayStartTimer)
+	//show winning text
+
+	//blink texy
+	if (disableGameScore)
 		return;
 
-	if (gs.players[PLAYER_ONE].deathCount == gs.players[PLAYER_TWO].deathCount) {
+	//check if you can show it
+	if (
+		   gs.players[PLAYER_ONE].deathCount >= PLAYER_MAX_SCORE 
+		|| gs.players[PLAYER_TWO].deathCount >= PLAYER_MAX_SCORE 
+		|| gs.gameClock == 0
+		) {
 
-		DrawText(REPLAY_TEXT_X, REPLAY_TEXT_Y, false, END_TEXT_TIE);
+			//tie game
+			if (gs.players[PLAYER_ONE].deathCount == gs.players[PLAYER_TWO].deathCount) {
 
-	}
-	else if (gs.players[PLAYER_ONE].deathCount < gs.players[PLAYER_TWO].deathCount) {
-		DrawText(REPLAY_TEXT_X, REPLAY_TEXT_Y, false, END_TEXT_PLAYER1);
-	}
-	else {
-		DrawText(REPLAY_TEXT_X, REPLAY_TEXT_Y, false, END_TEXT_PLAYER2);
-	}
+				DrawText(REPLAY_TEXT_X, REPLAY_TEXT_Y, false, END_TEXT_TIE);
 
+			}
+			else {
+
+				char* endText = NULL;
+				uint8_t whichPlayerWon = 0;
+				
+				//which player won
+				if (gs.players[PLAYER_ONE].deathCount < gs.players[PLAYER_TWO].deathCount) {
+					whichPlayerWon = 1;
+				}
+				else {
+					whichPlayerWon = 2;
+				}
+
+				//what kind of win
+				if (gs.gameClock == 0) { //timeout
+					endText = END_TEXT_TIMEOUT_WIN;
+				}
+				else if (gs.players[PLAYER_ONE].deathCount == 0 || gs.players[PLAYER_TWO].deathCount == 0){ //perfect
+					endText = END_TEXT_PERFECT;
+				} else { //normal win
+					endText = END_TEXT_WIN;
+				}
+
+				DrawTextNumberAppend(REPLAY_TEXT_X, REPLAY_TEXT_Y, false, endText, whichPlayerWon);
+			}
+	}
 	
+}
+
+void InitGameClock(void) {
+	gs.gameClock = PLAYER_GAME_CLOCK_MAX;
+}
+
+void TickGameClock(void) {
+	if (gs.gameClock > 0 && !disableGameTimer && !disableGameScore) gs.gameClock--;
+}
+
+void DrawGameClock(void) {
+	if (!disableGameTimer && !disableGameScore) {
+		DrawTextNumberAppend(GAME_CLOCK_X, GAME_CLOCK_Y, true, "", gs.gameClock / TARGET_FRAME_RATE);
+	}
+}
+
+void RestartMatch(void) {
+	InitPlayers();
+	InitBall();
+	InitParticles();
+	InitGameClock();
+}
+
+void InitAllScores(void) {
+	gs.players[PLAYER_ONE].deathCount = 0;
+	gs.players[PLAYER_TWO].deathCount = 0;
+	InitGameClock();
 }
