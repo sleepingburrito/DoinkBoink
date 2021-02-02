@@ -15,25 +15,23 @@
 #include "Tools.h"
 #include "Sound.h"
 #include "Graphics.h"
+#include "Map.h"
 #include "Particles.h"
 #include "Rewind.h"
 #include "IO.h"
-#include "Map.h"
 #include "physics.h"
 #include "BaseCollision.h"
 #include "BallCode.h"
 #include "PlayerCode.h"
 
-#include <math.h>
 
 void InitGameOnly(void) {
 	//use to reset the game but keep sdl running
-	InitMap(); //InitMap() and LoadMap() before players or ball (map holds spawn locations)
+	InitMap(); //Call InitMap() and LoadMap() before calling the players or ball init (map holds spawn locations)
 	LoadMap(gs.mapIndex);
 	InitPlayers();
 	InitBall();
 	InitBaseCollision();
-	RngInit(0);
 	InitParticles();
 	InitGameClock();
 	screen = SCREEN_STATE_GAME;
@@ -64,10 +62,24 @@ int main(void) {
 	InitGameOnly();
 	InitRewind(); //debug
 	newMapIndex = MAP_DEBUG; //debug start map
+	RngInit(0);
+	SetAutoMapSwitch(false);
+	InitPointLight();
 
 
+	//tese debug turn AI on at start
+	//gs.settingsAi[1] = AI_SET_EASY;
+	//gs.settingsAi[0] = AI_SET_EASY;
 
-	//tese debug
+
+	//debug notes to undo
+	//------------------
+	//undo test
+	//disable AI
+	//enable vsynce
+	//reset default map
+	//enable frame lmiter
+	//disable map auto swithc
 
 
 
@@ -95,13 +107,26 @@ int main(void) {
 			SDL_Delay(10);
 		}
 
-		//limit update rate of loop and tick ms clock
-		//limit game logic to ~60hz
-		if (MsClock() - lastLogicUpdate >= ((uint64_t)MS_TILL_UPDATE << updateLogicRateTimeShifter)) {
+		//limit game logic speed
+		bool fallbackGameLogicLimit = false;
+		const uint64_t timeDeltaLastFrame = MsClock() - lastLogicUpdate;
+		//check if the game is running too fast, if so enable logic limit
+		if (timeDeltaLastFrame < (uint64_t)(MS_TILL_UPDATE)) {
+			fallbackGameLogicLimit = true;
+		}
+		//game logic limiter
+		if (timeDeltaLastFrame >= ((uint64_t)MS_TILL_UPDATE << updateLogicRateTimeShifter)) {
 			lastLogicUpdate = MsClock();
 			updateGameLogic = true;
 		}
+		//if the display refresh rate is the same as target frame rate then remove frame limiter and use vsynce
+		if (0 == updateLogicRateTimeShifter 
+			&& TARGET_FRAME_RATE == displayRefreshRate 
+			&& false == fallbackGameLogicLimit) {
+			updateGameLogic = true;
+		}
 		//updateGameLogic = true; //debug no frame cap
+		
 		
 		//end of loop upkeep
 
@@ -127,7 +152,7 @@ int main(void) {
 
 			case SCREEN_STATE_GAME:
 
-				//map switch, switched to newMapIndex
+				//map switch, use SwitchMap() to switch maps
 				if (newMapIndex != gs.mapIndex) {
 					gs.mapIndex = newMapIndex;
 					InitGameOnly();
@@ -136,8 +161,8 @@ int main(void) {
 				//step
 				if (gs.worldTimers[WOULD_PAUSE_TIMER] == 0) {
 					
-					UpdateBaseCollision();
 					BallsStep();
+					UpdateBaseCollision(); //needs to come after the ball step
 					PlayerSteps();
 					CheckPlayersScores();
 					ParticlStep();
@@ -145,7 +170,6 @@ int main(void) {
 					RewindRecord();
 					ReplayStartStep();
 
-					//test
 				}
 
 				//step world timers
@@ -155,7 +179,7 @@ int main(void) {
 				//draw
 				SpriteTimerTick();
 				DrawBackground(gs.mapIndex);
-				DrawMapDebug();
+				//DrawMapDebug();
 				
 				DrawScore();
 				DrawGameClock();
@@ -165,6 +189,12 @@ int main(void) {
 				
 				DrawPartics();
 				DrawEndGameWinningText();
+
+				//test debug
+				if (gs.mapIndex == MAP_BIG_S) {
+					PointLight();
+					DrawMapDebug();
+				}
 
 				break; //end SCREEN_STATE_GAME
 
@@ -214,7 +244,7 @@ int main(void) {
 				SpriteTimerTick();
 				DrawBackground(gs.mapIndex);
 				DrawPlayers();
-				DrawPartics();
+				//DrawPartics();
 				break;
 
 			default:

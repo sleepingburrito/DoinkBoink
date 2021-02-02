@@ -81,7 +81,7 @@ void ReplayStartStep(void){
 			return;
 		}
 
-
+		//count down timer then start rewind
 		if (--replayStartTimer == 1) {
 			replayStartTimer = 0;
 			screen = SCREEN_STATE_INSTANT_REPLAY;
@@ -94,6 +94,10 @@ void ReplayStartStep(void){
 //does the replay and restarts the game tat the end
 void ReplayScreenStep(void) {
 
+	//getting key states so you can skip the replay
+	const uint8_t keys = padIO[PLAYER_ONE] | padIO[PLAYER_TWO];
+
+	//getting buffer
 	mainState dispStateBuffer = tap[tapFrame];
 	const uint8_t nextFrameIndex = tapFrame + (uint8_t)1;
 
@@ -120,8 +124,20 @@ void ReplayScreenStep(void) {
 	gs = dispStateBuffer;
 
 	//restart the game at replay end
-	if (tapFrame == tapFrameLast) {
+	if (tapFrame == tapFrameLast || FLAG_TEST(keys, PAD_ACTION)) {
 		screen = SCREEN_STATE_GAME;
+
+		//auto matp switch
+		if (autoMapSwitch) {
+			if (++newMapIndex >= MAP_COUNT) {
+				newMapIndex = 0;
+			}
+		}
+
 		RestartMatch();
 	}
+}
+
+void SetAutoMapSwitch(const bool set) {
+	autoMapSwitch = set;
 }

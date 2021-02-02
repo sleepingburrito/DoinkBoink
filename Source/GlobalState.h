@@ -10,7 +10,7 @@ bool quitGame = false;
 //sdl events
 SDL_Event event;
 //game logic timing tools
-uint8_t updateLogicRateTimeShifter = 0; //bitshit the game logic time to slow game down, set in padio
+uint8_t updateLogicRateTimeShifter = 0; //bitshift the game logic time to slow game down, set in padio
 Uint64 lastLogicUpdate = 0;
 bool updateGameLogic = false; //used by timing tools in main to know when to update game logic
 bool drawFpsCounter = true; //safe set this if you wish to have a fps counter
@@ -55,6 +55,11 @@ SDL_Texture* spriteTex = NULL;
 SDL_Texture* spriteTextTexBig = NULL;
 SDL_Texture* spriteTextTexSmall = NULL;
 SDL_Texture* backgrounds = NULL;
+
+uint16_t displayRefreshRate = 0; //read only, set when graphics are init
+
+SDL_Rect lightBoxs[POINT_LIGHT_MAX_BOXES]; //used by point light for batch processing
+//end of graphics
 
 //log text 
 textLogBase textLogBuffer[TEXT_LOG_LINES];
@@ -127,6 +132,7 @@ uint8_t recordInitTime = 0; //only used for the first few seconds to make sure y
 //replay section
 uint8_t replayStartTimer = 0; //also used to tell in other parts of the code that the game has ended
 uint8_t replaySlowMo = 0;
+bool autoMapSwitch = false; //set here, if set when the replay is over it will switch to a new map
 //
 //end of rewind.h
 

@@ -9,17 +9,16 @@ void RngInit(const uint8_t starting) {
 
 uint8_t Rng8(void) {
 
-	++gs.rngSeed; //make gcc -wall happy
+	++gs.rngSeed; //make GCC happy adding it outhere
 
 	return gs.spriteTimer
-		^ RNG_TABLE[gs.rngSeed]
-		^ (
-			TRUST_ANGLE[gs.rngSeed]
-			+ BRAKES_FRICTION[gs.spriteTimer]
-			+ AIR_FRICTION[gs.rngSeed]
-			+ GROUND_FRICTION[gs.spriteTimer]
-			+ (uint8_t)SIN_TABLE[(uint8_t)(gs.mapIndex << 4)]
-			);
+		+ RNG_TABLE[gs.rngSeed]
+		+ gs.rngSeed
+		+ TRUST_ANGLE[gs.rngSeed]
+		+ BRAKES_FRICTION[gs.spriteTimer]
+		+ AIR_FRICTION[gs.rngSeed]
+		+ GROUND_FRICTION[gs.spriteTimer]
+		+ gs.mapIndex;
 }
 
 uint16_t Rng16(void) {

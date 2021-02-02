@@ -187,6 +187,7 @@ void BallInsidePlayer(ballBase* const ball) {
 			playerHit->playerTimer[PLAYER_SPAWN_TIMER] = PLAYER_HIT_TIME;
 			playerHit->playerTimer[PLAYER_BLINK_TIMER] = PLAYER_HIT_TIME;
 			playerHit->playerTimer[PLAYER_BOUNCH_TIMER] = PLAYER_DEAD_BOUNCE_TIME;
+			playerHit->playerTimer[PLAYER_STUN_TIMER] = (PLAYER_DEAD_BOUNCE_TIME / 2);
 			playerHit->deathCount++;
 
 			//give ball momenum to player
@@ -266,6 +267,8 @@ void BallInsidePlayer(ballBase* const ball) {
 				ball->ballFlags = BitCopy(playerHit->playerFlags, PLAYER_SECOND, ball->ballFlags, BALL_ON_PLAYER2);
 				//reset the players dodge
 				playerHit->playerTimer[PLAYER_STUN_TIMER] = 0;
+				playerHit->playerTimer[PLAYER_DODGE_TIMER] = 0;
+				playerHit->playerTimer[PLAYER_BOUNCH_TIMER] = 0;
 				playerHit->playerTimer[PLAYER_SOLID_TIMER] = 0;
 				playerHit->playerTimer[PLAYER_INVISIBILITY_TIMER] = 0;
 			} //end of parry dodge
@@ -448,13 +451,13 @@ void DrawBall(const ballBase* const ball) {
 		//sparks
 		if (FLAG_TEST(ball->ballPhysics.physicsFlags, PHYSICS_IN_WALL)) {
 			for (uint8_t i = RngMasked8(RNG_MASK_15); i > 0; --i) {
-				ParticleAdd(ballX - xOffset, ballY - yOffset, -32 + (5 + (int8_t)(RngMasked8(RNG_MASK_63))), -32 + (5 + (int8_t)(RngMasked8(RNG_MASK_63))), 0, 2, SPRITE_INDEX_SPARK, RngMasked8(RNG_MASK_7), player2Col);
+				ParticleAdd(ballX - xOffset, ballY - yOffset, -32 + (5 + (int8_t)(RngMasked8(RNG_MASK_63))), -32 + (5 + (int8_t)(RngMasked8(RNG_MASK_63))), 0, 2, SPRITE_INDEX_SPARK, RngMasked8(RNG_MASK_15), player2Col);
 			}
 		}
 	}
 
+	DrawBoxShadow(&ball->ballPhysics.postionWorldSpace);
 	DrawSprite(ballX - xOffset, ballY - yOffset, index, true, inverth, invertv, blink, player2Col);
-
 }
 
 //

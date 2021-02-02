@@ -7,7 +7,7 @@
 #include "typedefs.h"
 #include "BallCode.h"
 
-
+//tools
 playerBase InitPlayer(const uint8_t whichPlayer) {
 
 	playerBase returnPlayer;
@@ -68,7 +68,6 @@ void InitPlayers(void) {
 	}
 }
 
-//tools
 bool PlayerFacingBall(const playerBase* const player, const ballBase* const ball) {
 	if (player == NULL || ball == NULL) {
 #ifdef NDEBUG
@@ -85,14 +84,20 @@ bool PlayerFacingBall(const playerBase* const player, const ballBase* const ball
 		ballGoingRight = true;
 	}
 
-	return FLAG_TEST(player->playerFlags, PLAYER_FACING_RIGHT) != ballGoingRight;
+	bool facing = FLAG_TEST(player->playerFlags, PLAYER_FACING_RIGHT) != ballGoingRight;
+
+	if (FLAG_TEST(player->playerFlags, PLAYER_DUCKING)) {
+		facing = false;
+	}
+
+	return facing;
 }
 
 //player step
-//
 void PlayerStealBall(playerBase* const player) {
 	//Check if in other player to steal their ball
 	playerBase* const OtherPlayer = playerHitPlayer[FLAG_TEST(player->playerFlags, PLAYER_SECOND)];
+	
 	if (OtherPlayer != NULL) {
 		//get the other players ball if they have one
 		ballBase* const OtherBall = CheckPlayersBall(OtherPlayer->playerFlags);
@@ -138,8 +143,8 @@ void CatchPickupBall(playerBase* const player) {
 			player->playerTimer[PLAYER_CATCH_TIMER] = 0; //also signals ball to bouce
 		}
 
-		//catching the ball
-		if (player->playerTimer[PLAYER_CATCH_TIMER] != 0)
+		//catching the ball (can only get the ball this way if its on ground, else you get the ball though a steal
+		if (player->playerTimer[PLAYER_CATCH_TIMER] != 0 && !FLAG_TEST(gs.ball.ballFlags, BALL_ON_PLAYER))
 		{
 			//zero out charge if its your own ball
 			if (FLAG_TEST(player->playerFlags, PLAYER_SECOND) == FLAG_TEST(ballInPlayer->ballFlags, BALL_ON_PLAYER2)) {
@@ -295,6 +300,15 @@ void TrowBall(playerBase* const player) {
 		player->playerTimer[PLAYER_CHARGE_TROW_TIMER] = 0;
 		player->playerTimer[PLAYER_CANT_ATTACK_TIMER] = TROW_STUN; //used like recovery frames, player cant attack instanty
 		player->playerTimer[PLAYER_STUN_TIMER] = PLAYER_CHARGE_STUN_RUNOFF; //stun the player a little after a troe
+
+		//particals
+		if (FLAG_TEST(player->playerFlags, PLAYER_TROW_H)) {
+			const uint16_t xCenterPlayer = player->playerPhysics.postionWorldSpace.topLeft.x + TO_FIXPOINT(PLAYER_WIDTH >> 1) - (FLAG_TEST(player->playerFlags, PLAYER_TROW_LEFT) ? TO_FIXPOINT(PLAYER_WIDTH) : 0);
+			const uint16_t yCenterPlayer = player->playerPhysics.postionWorldSpace.topLeft.y + TO_FIXPOINT(PLAYER_HEIGHT >> 2);
+			for (uint8_t i = trustSpeedTrow >> 4; i != 0; i--) {
+				ParticleAdd(xCenterPlayer, yCenterPlayer, 0, 8 - (int8_t)RngMasked8(RNG_MASK_15), 0, 4 - (int8_t)RngMasked8(RNG_MASK_7), SPRITE_INDEX_BIGSMOKE, RngMasked8(RNG_MASK_15), false);
+			}
+		}
 	}
 }
 
@@ -311,9 +325,10 @@ void GetTrowDirection(playerBase* const player) {
 		//get key state for trow direction
 		const flags tmpKeysHeld = gs.padIOReadOnly[PADIO_INDEX(PAD_STATE_HELD, FLAG_TEST(player->playerFlags, PLAYER_SECOND))];
 
-		//cancle trow
-		if (FLAG_TEST(tmpKeysHeld, PAD_DODGE)) {
+		//throw cancel (or if you loose the ball in a trow)
+		if (FLAG_TEST(tmpKeysHeld, PAD_DODGE) || CheckPlayersBall(player->playerFlags) == NULL) {
 			player->playerTimer[PLAYER_CHARGE_TROW_TIMER] = 0;
+			player->playerTimer[PLAYER_STUN_TIMER] = PLAYER_CHARGE_STUN_RUNOFF;
 		}
 		
 		//if player is holding a dir
@@ -352,7 +367,20 @@ void GetTrowDirection(playerBase* const player) {
 void CatchAndTrowInit(playerBase* const player) {
 	const flags keysTap = gs.padIOReadOnly[PADIO_INDEX(PAD_STATE_TAP, FLAG_TEST(player->playerFlags, PLAYER_SECOND))];
 
-	if (FLAG_TEST(keysTap, PAD_ACTION) && player->playerTimer[PLAYER_STUN_TIMER] == 0)
+	//check if both players are trying to pickup at the same time
+	playerBase* const OtherPlayer = &gs.players[!FLAG_TEST(player->playerFlags, PLAYER_SECOND)];
+	const flags keysTapOtherPlayer = gs.padIOReadOnly[PADIO_INDEX(PAD_STATE_TAP, !FLAG_TEST(player->playerFlags, PLAYER_SECOND))];
+
+	if (
+		FLAG_TEST(keysTap, PAD_ACTION) && player->playerTimer[PLAYER_STUN_TIMER] == 0
+		//if other player is on the ball and is trying to pickup at the same time as you the both fail to pick up the ball
+		&& !(
+			FLAG_TEST(keysTapOtherPlayer, PAD_ACTION)
+			&& OtherPlayer->playerTimer[PLAYER_STUN_TIMER] == 0
+			&& NULL != playerHitBallInflate[!FLAG_TEST(player->playerFlags, PLAYER_SECOND)]
+			&& FLAG_TEST(gs.ball.ballFlags, BALL_NEUTRAL)
+			)
+		)
 	{
 		//pickup ball timer
 		if (CheckPlayersBall(player->playerFlags) == NULL)
@@ -393,6 +421,7 @@ void CatchAndTrowInit(playerBase* const player) {
 void PlayerDodge(playerBase* const player) {
 	const flags keysTap = gs.padIOReadOnly[PADIO_INDEX(PAD_STATE_TAP, FLAG_TEST(player->playerFlags, PLAYER_SECOND))];
 
+
 	if (FLAG_TEST(keysTap, PAD_DODGE) 
 		&& player->playerTimer[PLAYER_STUN_TIMER] == 0
 		&& player->playerTimer[PLAYER_DODGE_TIMER_COOLDOWN] == 0) {
@@ -401,6 +430,7 @@ void PlayerDodge(playerBase* const player) {
 		player->playerTimer[PLAYER_STUN_TIMER] = PLAYER_DODGE_TIME;
 		player->playerTimer[PLAYER_SOLID_TIMER] = PLAYER_DODGE_TIME;
 		player->playerTimer[PLAYER_DODGE_TIMER] = PLAYER_DODGE_TIME;
+		player->playerTimer[PLAYER_BOUNCH_TIMER] = PLAYER_DODGE_TIME;
 		player->playerTimer[PLAYER_DODGE_TIMER_COOLDOWN] = PLAYER_DODGE_COOLDOWN_TIME;
 		//get a small speed step
 		uint8_t directionMoving = DIR_NON;
@@ -457,17 +487,10 @@ void PlayerJump(playerBase* const player) {
 	//set if the player can wall jump when not on wall
 	if (FLAG_TEST(player->playerPhysics.physicsFlags, PHYSICS_IN_HORIZONTAL_WALL) && !FLAG_TEST(player->playerPhysics.physicsFlags, PHYSICS_ONGROUND)) {
 		player->playerTimer[PLAYER_WALLJUMP_TIMER] = PLAYER_WALL_JUMP_TIMER;
-
-		if (FLAG_TEST(player->playerFlags, PLAYER_FACING_RIGHT)) {
-			FLAG_SET(player->playerFlags, PLAYER_TROW_LEFT);
-		}
-		else {
-			FLAG_ZERO(player->playerFlags, PLAYER_TROW_LEFT);
-		}
 	}
 
 	//stun
-	if (player->playerTimer[PLAYER_STUN_TIMER] != 0) {
+	if (player->playerTimer[PLAYER_STUN_TIMER] != 0 || 0 != player->playerTimer[PLAYER_JUMP_COOLDOWN_TIMER]) {
 		keysHeld = 0;
 		keysTap = 0;
 	}
@@ -497,8 +520,17 @@ void PlayerJump(playerBase* const player) {
 				speeds[SPEED_DOWN_INDEX] = 0;
 				AddUint8Capped(&speeds[SPEED_UP_INDEX], PLAYER_WALL_JUMPV);
 
-				//set jump
-				if (!FLAG_TEST(player->playerFlags, PLAYER_TROW_LEFT)) {
+				//set jump 
+				//wall jump makes assumpes based around the center of the map, that outside walls jump inwards and inside walls jump outwards
+				bool jumpDir = player->playerPhysics.postionWorldSpace.topLeft.x < TO_FIXPOINT(BASE_RES_WIDTH >> 1);
+
+				if (player->playerPhysics.postionWorldSpace.bottomRight.x < TO_FIXPOINT(PLAYER_WALL_JUMP_SIDE_OFFSET)
+					|| player->playerPhysics.postionWorldSpace.bottomRight.x > TO_FIXPOINT(BASE_RES_WIDTH - PLAYER_WALL_JUMP_SIDE_OFFSET)) {
+					jumpDir = !jumpDir;
+				}
+
+				//player->playerPhysics.postionWorldSpace.bottomRight.x < (BASE_RES_WIDTH << 1)
+				if (!jumpDir) {
 					AddUint8Capped(&speeds[SPEED_RIGHT_INDEX], PLAYER_WALL_JUMPH);
 				}
 				else {
@@ -532,6 +564,13 @@ void PlayerJump(playerBase* const player) {
 		PlaySoundEffect(SOUND_EFFECT_SQEEKSLOW);
 	}
 
+	//if you hit your head on the celing add a cooldown to jumo
+	if (FLAG_TEST(player->playerPhysics.physicsFlags, PHYSICS_IN_WALL)
+		&& !(FLAG_TEST(player->playerPhysics.physicsFlags, PHYSICS_IN_HORIZONTAL_WALL) || FLAG_TEST(player->playerPhysics.physicsFlags, PHYSICS_ONGROUND))) {
+		
+		player->playerTimer[PLAYER_JUMP_COOLDOWN_TIMER] = PLAYER_JUMP_COOLDOWN;
+	}
+
 	//double jump reset
 	if (FLAG_TEST(player->playerPhysics.physicsFlags, PHYSICS_ONGROUND) || FLAG_TEST(player->playerPhysics.physicsFlags, PHYSICS_IN_HORIZONTAL_WALL)) {
 		FLAG_SET(player->playerFlags, PLAYER_HAS_DOUBLE_JUMP);
@@ -552,22 +591,32 @@ void PlayerFall(playerBase* const player) {
 	}
 }
 
-//also does wall climbing
 void PlayerHspeedMovement(playerBase* const player) {
+	//wall climbing happens here also
+
 	const flags keysHeld = gs.padIOReadOnly[PADIO_INDEX(PAD_STATE_HELD, FLAG_TEST(player->playerFlags, PLAYER_SECOND))];
 	speed* const speeds = player->playerPhysics.allSpeeds;
 	int16_t hspeed = 0;
 
 	if (player->playerTimer[PLAYER_STUN_TIMER] == 0)
 	{
-		if (FLAG_TEST(keysHeld, PAD_LEFT)) {
-			hspeed = -1;
-			FLAG_ZERO(player->playerFlags, PLAYER_FACING_RIGHT);
-		}
-		if (FLAG_TEST(keysHeld, PAD_RIGHT)) {
-			hspeed = 1;
-			FLAG_SET(player->playerFlags, PLAYER_FACING_RIGHT);
-		}
+		const bool flagStart = FLAG_TEST(player->playerFlags, PLAYER_FACING_RIGHT);
+		if (!(FLAG_TEST(keysHeld, PAD_LEFT) && FLAG_TEST(keysHeld, PAD_RIGHT))) //if pressing both do nothing
+		{
+			if (FLAG_TEST(keysHeld, PAD_LEFT)) {
+				hspeed--;
+				FLAG_ZERO(player->playerFlags, PLAYER_FACING_RIGHT);
+			}
+			if (FLAG_TEST(keysHeld, PAD_RIGHT)) {
+				hspeed++;
+				FLAG_SET(player->playerFlags, PLAYER_FACING_RIGHT);
+			}
+
+			//start turn animation
+			if (flagStart != FLAG_TEST(player->playerFlags, PLAYER_FACING_RIGHT)) {
+				player->playerTimer[PLAYER_TURN_TIMER] = PLAYER_TURN_TIME;
+			}
+		}//end of checking if both dir keys are pressed
 	}
 
 	//apply hspeed
@@ -576,8 +625,9 @@ void PlayerHspeedMovement(playerBase* const player) {
 	{
 		//find what speed to use
 		if (FLAG_TEST(player->playerPhysics.physicsFlags, PHYSICS_ONGROUND)) {
+			
 			//on ground
-			if (FLAG_TEST(keysHeld, PAD_RUN)) {
+			if (/*FLAG_TEST(keysHeld, PAD_RUN) ||*/ GetHspeed(speeds) > TO_FIXPOINT(PLAYER_AUTO_RUN_SPEED)) {
 				//running
 				hspeed *= PLAYER_ACC_GROUND_RUNNING;
 			}
@@ -627,6 +677,7 @@ void PlayerHspeedMovement(playerBase* const player) {
 
 void PlayerDucking(playerBase* const player) {
 	const flags keysHeld = gs.padIOReadOnly[PADIO_INDEX(PAD_STATE_HELD, FLAG_TEST(player->playerFlags, PLAYER_SECOND))];
+
 	//ducking
 	if (FLAG_TEST(player->playerPhysics.physicsFlags, PHYSICS_ONGROUND)
 		&& FLAG_TEST(keysHeld, PAD_DOWN)
@@ -656,6 +707,58 @@ void PlayerSpawning(playerBase* const player) {
 }
 
 //AI
+void PlayerAiSettings(const uint8_t AiSetting, const uint8_t playerId) {
+	if (playerId >= PLAYER_COUNT) {
+#ifdef NDEBUG
+		return;
+#else
+		printf("PlayerAiSettings playerId OB");
+		assert(false);
+#endif
+	}
+
+	if (AiSetting >= AI_SETTINGS_COUNT) {
+#ifdef NDEBUG
+		return;
+#else
+		printf("PlayerAiSettings AiSetting OB");
+		assert(false);
+#endif
+	}
+
+	//cant set state (will get overwitten immidalty), so quit out eraly
+	if (screen == SCREEN_STATE_INSTANT_REPLAY || screen == SCREEN_STATE_REWIND) {
+		return;
+	}
+
+	gs.settingsAi[playerId] = AiSetting;
+
+	const uint8_t playerNumTmp = playerId + 1;
+
+	switch (gs.settingsAi[playerId])
+	{
+	case AI_SET_OFF:
+		LogTextScreen(TEXT_AI_OFF, playerNumTmp);
+		break;
+
+	case AI_SET_EASY:
+		LogTextScreen(TEXT_AI_EASY, playerNumTmp);
+		break;
+
+	case AI_SET_MEDIUM:
+		LogTextScreen(TEXT_AI_MEDIUM, playerNumTmp);
+		break;
+
+	case AI_SET_HARD:
+		LogTextScreen(TEXT_AI_HARD, playerNumTmp);
+		break;
+
+	case AI_SET_FETCH:
+		LogTextScreen(TEXT_AI_FETCH, playerNumTmp);
+		break;
+	}
+}
+
 void PlayerMoveToAI(const playerBase* const player, uint16_t goalX, uint16_t goalY, bool allowClimb) {
 
 	//this func will try and go to an x/y on the map
@@ -708,9 +811,31 @@ void PlayerMoveToAI(const playerBase* const player, uint16_t goalX, uint16_t goa
 	//to get around the plat for MAP_DEBUG
 	if (gs.mapIndex == MAP_DEBUG) {
 		//check if we are not on the same platfrom
-		if ((goalY < TO_FIXPOINT(BASE_RES_HEIGHT_HALF)) != (playerCenterY < TO_FIXPOINT(BASE_RES_HEIGHT_HALF))) {
-			goalX = AI_MAP_DEBUG_PLATX_LEFT; // goalX < TO_FIXPOINT(BASE_RES_HEIGHT_HALF) ? AI_MAP_DEBUG_PLATX_LEFT : AI_MAP_DEBUG_PLATX_RIGHT;
+		if ((goalY < TO_FIXPOINT(BASE_RES_HEIGHT_HALF + SPRITE_HEIGHT)) != (playerCenterY < TO_FIXPOINT(BASE_RES_HEIGHT_HALF + SPRITE_HEIGHT))) {
+
+			goalX = goalX < TO_FIXPOINT(BASE_RES_HEIGHT_HALF) ? AI_MAP_DEBUG_PLATX_LEFT - TO_FIXPOINT(SPRITE_WIDTH) : AI_MAP_DEBUG_PLATX_RIGHT;
 			goalY = AI_MAP_DEBUG_PLATY;
+
+			int16_t distX = (int16_t)playerCenterX - (int16_t)goalX;
+			if (distX < 0) distX = -distX;
+
+			//try and jump up onto the platfrom
+			if (
+				(distX < TO_FIXPOINT(SPRITE_WIDTH))
+				&& playerCenterY > goalY
+				) {
+				FLAG_SET(*keysTap, PAD_JUMP);
+			}
+		}
+	}
+	//dont get stuck under the plat on big S
+	if (gs.mapIndex == MAP_BIG_S) {
+		int16_t distX = (int16_t)playerCenterX - (int16_t)TO_FIXPOINT(BASE_RES_WIDTH_HALF);
+		if (distX < 0) distX = -distX;
+
+		//if the ball is on top hold a dir to avoid the plat
+		if (distX < TO_FIXPOINT(SPRITE_WIDTH) && goalY < playerCenterY) {
+			FLAG_SET(*keysHeld, PAD_RIGHT);
 		}
 	}
 
@@ -724,7 +849,14 @@ void PlayerMoveToAI(const playerBase* const player, uint16_t goalX, uint16_t goa
 		}
 		//climb up if stuck on wall climb
 		if (FLAG_TEST(playerPhysicsFlags, PHYSICS_IN_HORIZONTAL_WALL)) {
-			FLAG_SET(*keysHeld, PAD_UP);
+
+			if (goalY < playerCenterY) {//climb tords goal
+				FLAG_SET(*keysHeld, PAD_UP);
+			}
+			else {
+				FLAG_SET(*keysHeld, PAD_DOWN);
+			}
+
 			//jump to get climb started
 			if (FLAG_TEST(playerPhysicsFlags, PHYSICS_ONGROUND)) {
 				FLAG_SET(*keysTap, PAD_JUMP);
@@ -744,6 +876,7 @@ void PlayerMoveToAI(const playerBase* const player, uint16_t goalX, uint16_t goa
 			FLAG_SET(*keysTap, PAD_JUMP);
 			FLAG_SET(*keysHeld, PAD_JUMP);
 		}
+
 	}//end of jump
 
 	//wall climb
@@ -816,25 +949,25 @@ void PlayerAI(playerBase* const player) {
 
 	//set AI settings depending on gloable settings
 	uint8_t missRate = 0;
-	uint8_t trowTimerMask = 0;
+	uint8_t randomKeyRate = 0;
 	
 	if (AI_SET_EASY == gs.settingsAi[myPlayerIndex]) {
 		FLAG_SET(player->AI, AI_ENABLED);
 		FLAG_ZERO(player->AI, AI_FETCH);
 		missRate = AI_MISS_RATE_MEDIUM;
-		trowTimerMask = AI_TROW_TIMER_MASK_MEDIUM;
+		randomKeyRate = AI_RNG_KEY_EASY;
 	}
 	else if (AI_SET_HARD == gs.settingsAi[myPlayerIndex]) {
 		FLAG_SET(player->AI, AI_ENABLED);
 		FLAG_ZERO(player->AI, AI_FETCH);
 		missRate = AI_MISS_RATE_HARD;
-		trowTimerMask = AI_MISS_RATE_HARD;
+		randomKeyRate = AI_RNG_KEY_MEDIUM;
 	}
 	else if (AI_SET_MEDIUM == gs.settingsAi[myPlayerIndex]) {
 		FLAG_SET(player->AI, AI_ENABLED);
 		FLAG_ZERO(player->AI, AI_FETCH);
 		missRate = AI_MISS_RATE_MEDIUM;
-		trowTimerMask = AI_TROW_TIMER_MASK_MEDIUM;
+		randomKeyRate = AI_RNG_KEY_HARD;
 	}
 	else if (AI_SET_FETCH == gs.settingsAi[myPlayerIndex]){
 		FLAG_SET(player->AI, AI_ENABLED);
@@ -868,9 +1001,12 @@ void PlayerAI(playerBase* const player) {
 	}
 
 	//random key
-	if (Rng8() < AI_RNG_KEY && !FLAG_TEST(player->AI, AI_FETCH)) {
+	if (Rng8() < randomKeyRate && !FLAG_TEST(player->AI, AI_FETCH)) {
 		*keysHeld = Rng8();
 		*keysTap = Rng8();
+
+		//make sure to not hold both dir keys at the same time
+		*keysHeld &= ~(1 << (myPlayerIndex ? PAD_LEFT : PAD_RIGHT) );
 	}
 
 	//getting the ball
@@ -882,7 +1018,7 @@ void PlayerAI(playerBase* const player) {
 		const bool onBall = (otherPlayerHasBall && HitOtherPlayer != NULL) || (!otherPlayerHasBall && ballInPlayer != NULL);
 		
 		//grab for ball if able to
-		if (onBall && Rng8() < missRate) {
+		if (onBall && (Rng8() < missRate || FLAG_TEST(player->AI, AI_FETCH))) {
 			FLAG_SET(*keysTap, PAD_ACTION);
 		}
 
@@ -930,7 +1066,7 @@ void PlayerAI(playerBase* const player) {
 
 				//start attack timer
 				if (playerTimers[PLAYER_AI_ATTACK_TIMER] == 0) {
-					playerTimers[PLAYER_AI_ATTACK_TIMER] = Rng8() & trowTimerMask;
+					playerTimers[PLAYER_AI_ATTACK_TIMER] = Rng8() & AI_TROW_TIMER_MASK_MEDIUM;
 				}
 			}//end of fetch block
 
@@ -998,7 +1134,7 @@ void PlayerSteps(void) {
 	}
 	
 }
-//
+
 //end player step
 
 
@@ -1055,9 +1191,10 @@ void DrawPLayerDebug(const playerBase * const player) {
 
 //also handles some sound effects
 void DrawPlayer(const playerBase* const player) {
-	const flags keysHeld = gs.padIOReadOnly[PADIO_INDEX(PAD_STATE_HELD, FLAG_TEST(player->playerFlags, PLAYER_SECOND))];
 
+	const flags keysHeld = gs.padIOReadOnly[PADIO_INDEX(PAD_STATE_HELD, FLAG_TEST(player->playerFlags, PLAYER_SECOND))];
 	const playerBase* otherPlayer = &gs.players[!FLAG_TEST(player->playerFlags, PLAYER_SECOND)];
+	const speed* const speeds = player->playerPhysics.allSpeeds;
 
 	const int16_t xOffset = TO_FIXPOINT(SPRITE_WIDTH_FORTH);
 	const int16_t yOffset = 0;
@@ -1073,7 +1210,7 @@ void DrawPlayer(const playerBase* const player) {
 
 	const bool spawnSmokeRate = (gs.spriteTimer & 1) && (gs.spriteTimer & 2) && (gs.spriteTimer & 4);
 	const bool playerMovingH = player->playerPhysics.allSpeeds[SPEED_LEFT_INDEX] + player->playerPhysics.allSpeeds[SPEED_RIGHT_INDEX] != 0;
-	
+
 	//ball offsets
 	ballBase* const ball = CheckPlayersBall(player->playerFlags);
 	int16_t ballOffX = 0;
@@ -1081,9 +1218,8 @@ void DrawPlayer(const playerBase* const player) {
 	uint8_t ballIndex = SPRITE_INDEX_SMALLBALL;
 	bool ballBlink = false;
 	bool ballOntopOfPlayer = false;
+	const int16_t playerDownBallOffset = (SPRITE_HEIGHT << 1) + SPRITE_HEIGHT_FORTH;
 
-	//- TO_FIXPOINT(SPRITE_WIDTH_FORTH)
-	//- TO_FIXPOINT(SPRITE_HEIGHT_FORTH)
 
 	//sound helper
 	if (spriteTimerSound != gs.spriteTimer) {
@@ -1104,12 +1240,17 @@ void DrawPlayer(const playerBase* const player) {
 		ballBlink = FLAG_TEST(ball->ballFlags, BALL_CHARGED);
 	}
 
-	if (player->playerTimer[PLAYER_BOUNCH_TIMER] != 0) {
+	if (player->playerTimer[PLAYER_BOUNCH_TIMER] != 0 && player->playerTimer[PLAYER_SPAWN_TIMER] != 0) {
 		//getting hurt
 		index = SPRITE_INDEX_PLAYERDMG;
 		if (spawnSmokeRate) {
 			ParticleAdd(playerX, playerY, (int8_t)RngMasked8(RNG_MASK_7) - 14, (int8_t)RngMasked8(RNG_MASK_7) - 14, 0, 0, SPRITE_INDEX_BIGSMOKE, RngMasked8(RNG_MASK_63), FLAG_TEST(player->playerFlags, PLAYER_SECOND));
 		}
+	}
+	else if (player->playerTimer[PLAYER_TURN_TIMER] != 0){
+		//turning animation
+		index = SPRITE_INDEX_PLAYERTURN;
+
 	} else if (player->playerTimer[PLAYER_DODGE_TIMER_COOLDOWN] != 0
 		&& player->playerTimer[PLAYER_INVISIBILITY_TIMER] != 0 ) {
 		//dodging
@@ -1133,6 +1274,7 @@ void DrawPlayer(const playerBase* const player) {
 		if (FLAG_TEST(player->playerFlags, PLAYER_DUCKING)) {
 			//ducking
 			index = SPRITE_INDEX_PLAYERDUCK;
+			ballOffY += playerDownBallOffset;
 			//duck sliding
 			if (spawnSmokeRate && playerMovingH) {
 				ParticleAdd(playerFeetX + playerFeetXRngOffset, playerFeetY, 0, -3, 0, 0, SPRITE_INDEX_BIGSMOKE, 5 + parTimer31, FLAG_TEST(player->playerFlags, PLAYER_SECOND));
@@ -1141,9 +1283,10 @@ void DrawPlayer(const playerBase* const player) {
 		else if (playerMovingH) {
 			if (FLAG_TEST(keysHeld, PAD_LEFT) || FLAG_TEST(keysHeld, PAD_RIGHT)) {
 				//if they are moving
-				if (FLAG_TEST(keysHeld, PAD_RUN)) {
+				if (/*FLAG_TEST(keysHeld, PAD_RUN) ||*/ GetHspeed(speeds) > TO_FIXPOINT(PLAYER_AUTO_RUN_SPEED)) {
 					//running
 					index = SPRITE_INDEX_PLAYERRUN;
+					ballOffY += playerDownBallOffset;
 					if (screen == SCREEN_STATE_GAME) {
 						PlaySoundEffect(SOUND_EFFECT_QUICKPITTERPATTER);
 						playersRunningSound = true;
@@ -1157,7 +1300,7 @@ void DrawPlayer(const playerBase* const player) {
 						playersWalkingSound = true;
 					}
 				}
-				
+
 				//smoke if changing directions left
 				if (spawnSmokeRate)
 				{
@@ -1180,12 +1323,13 @@ void DrawPlayer(const playerBase* const player) {
 		}
 		else { //standing default
 			index = SPRITE_INDEX_PLAYERSTAND;
+			ballOntopOfPlayer = true;
 		}
 	}else{
 		//not on ground
 		if (FLAG_TEST(player->playerPhysics.physicsFlags, PHYSICS_IN_HORIZONTAL_WALL)) {
 			//player wall hold
-			if (!FLAG_TEST(keysHeld, PAD_UP) & !FLAG_TEST(keysHeld, PAD_DOWN)) {
+			if (player->playerPhysics.allSpeeds[SPEED_DOWN_INDEX] == player->playerPhysics.allSpeeds[SPEED_UP_INDEX]) {
 				//if not holding up or down while on wall
 				//aka wall holding
 				index = SPRITE_INDEX_PLAYERWALLHOLD;
@@ -1213,12 +1357,51 @@ void DrawPlayer(const playerBase* const player) {
 		index = SPRITE_INDEX_PLAYERHEADBOUNCH;
 	}
 
+	//ball on top of player in these cases
+	if (
+		SPRITE_INDEX_PLAYERSTAND == index 
+		|| SPRITE_INDEX_PLAYERWALK == index
+		|| SPRITE_INDEX_PLAYERRUN == index
+		|| SPRITE_INDEX_PLAYERWALLHOLD == index
+		|| SPRITE_INDEX_PLAYERCLIMBDOWN == index
+		|| SPRITE_INDEX_PLAYERCLIMPUP == index
+		) {
+		ballOntopOfPlayer = true;
+		
+	}
+	//bob sprite when walking
+	if (((gs.spriteTimer >> SPRITE_SPEED_NORMAL) & 1) && SPRITE_INDEX_PLAYERWALK == index) {
+		ballOffY += SPRITE_HEIGHT_HALF;
+	}
+	if (SPRITE_INDEX_PLAYERSTAND == index || SPRITE_INDEX_PLAYERWALK == index) {
+		ballOffY += SPRITE_HEIGHT;
+	}
+
+	//offset when the player is facing right
+	if (!FLAG_TEST(player->playerFlags, PLAYER_FACING_RIGHT)) {
+		ballOffX -= SPRITE_WIDTH << 2;
+	}
+
 	//ball under player
-	const uint16_t ballX = playerX + ballOffX;
-	const uint16_t ballY = playerY + ballOffY;
+	int16_t ballX = (int16_t)playerX + ballOffX;
+	int16_t ballY = playerY + ballOffY;
+
+	//if ball cords get out of bounds reset it to the players locaion
+	if (ball != NULL) {
+		if (ballX <= 0 || ballX >= TO_FIXPOINT(BASE_RES_WIDTH - SPRITE_WIDTH)) {
+			ballX = playerX;
+		}
+		if (ballY <= 0 || ballY >= TO_FIXPOINT(BASE_RES_HEIGHT - SPRITE_HEIGHT)) {
+			ballY = playerY;
+		}
+	}
+
 	if (!ballOntopOfPlayer && ball != NULL) {
 		DrawSprite(ballX, ballY, ballIndex, true, false, false, ballBlink, FLAG_TEST(player->playerFlags, PLAYER_SECOND));
 	}
+
+	//player shadow
+	DrawBoxShadow(&player->playerPhysics.postionWorldSpace);
 
 	//draw player
 	DrawSprite(playerX - xOffset,
@@ -1290,6 +1473,19 @@ void CheckPlayersScores(void) {
 		&& replayStartTimer == 0 //this timer is also used to tell if the game has ended
 		&& !disableGameScore
 		) {
+
+		//test debug print players scores
+		static int p1Score = 0;
+		static int p2Score = 0;
+		if (gs.players[PLAYER_ONE].deathCount < gs.players[PLAYER_TWO].deathCount) {
+			printf("P1 WON, SCORE OTHER PLAYER: %d ", gs.players[PLAYER_ONE].deathCount);
+			p1Score++;
+		}
+		else {
+			printf("P2 WON, SCORE OTHER PLAYER: %d ", gs.players[PLAYER_TWO].deathCount);
+			p2Score++;
+		}
+		printf(" Score Total P1: %d P2: %d \n", p1Score, p2Score);
 
 		PlaySoundEffect(SOUND_EFFECT_AIRHORN);
 		replayStartTimer = REPLAY_START_IN; //start replay timer

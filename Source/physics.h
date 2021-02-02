@@ -99,6 +99,11 @@ void ApplyFriction(speed* const dest, const uint8_t* const friction) {
 	}
 }
 
+uint16_t GetHspeed(const speed* const source) {
+	int16_t tempHspeed = source[SPEED_LEFT_INDEX] + source[SPEED_RIGHT_INDEX];
+	if (tempHspeed < 0) tempHspeed = -tempHspeed;
+	return (uint8_t)tempHspeed;
+}
 
 //makes a number that till let you compair two speeds
 int32_t SpeedCompare(const speed * const speedsin) {

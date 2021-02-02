@@ -114,6 +114,16 @@ void LoadMapArray(const uint16_t * const mapIn, uint16_t count) {
 }
 
 void LoadMap(const uint8_t mapId) {
+	//error checking
+	if (mapId >= MAP_COUNT) {
+#ifdef NDEBUG
+		return;
+#else
+		printf("LoadMap mapId is OB");
+		assert(false);
+#endif
+	}
+
 	InitMap();
 	gs.mapIndex = mapId;
 
@@ -144,4 +154,18 @@ void LoadMap(const uint8_t mapId) {
 		break;
 #endif
 	}
+}
+
+void SwitchMap(const uint8_t mapIndex) {
+	//error checking
+	if (mapIndex >= MAP_COUNT) {
+#ifdef NDEBUG
+		return;
+#else
+		printf("SwitchMap mapIndex is OB");
+		assert(false);
+#endif
+	}
+
+	newMapIndex = mapIndex;
 }

@@ -62,7 +62,8 @@ void ParticlStep(void) {
 			baseP->location.x += baseP->velocity[X_AXIS];
 			baseP->location.y += baseP->velocity[Y_AXIS];
 			//despawn off screen
-			if (baseP->location.x >= TO_FIXPOINT(BASE_RES_WIDTH) || baseP->location.y >= TO_FIXPOINT(BASE_RES_HEIGHT)) {
+			if (baseP->location.x >= TO_FIXPOINT(BASE_RES_WIDTH - SPRITE_WIDTH) || baseP->location.y >= TO_FIXPOINT(BASE_RES_HEIGHT - SPRITE_HEIGHT) 
+				|| 0 == baseP->location.x || 0 == baseP->location.y) {
 				baseP->timer = 0;
 			}
 		}
@@ -73,7 +74,7 @@ void DrawPartics(void) {
 	for (uint8_t i = 0; i < PARTICLES_MAX; ++i) {
 		baseParticle* baseP = &gs.particles[i];
 		if (baseP->timer > 0) {
-			DrawSprite(baseP->location.x, baseP->location.y, baseP->spriteIndex, false, i & 1, false, false, baseP->player2colors);
+			DrawSprite(baseP->location.x, baseP->location.y, baseP->spriteIndex, false, i & 1, false, false, /*baseP->player2colors*/ false);
 		}
 	}
 }

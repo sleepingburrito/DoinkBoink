@@ -3,7 +3,7 @@
 
 //Game Info
 #define GAME_NAME "DoinkBoink"
-#define GAME_VS "0.1"
+#define GAME_VS "0.2"
 
 //file
 #ifdef _WIN32
@@ -29,12 +29,24 @@
 #define SPRITE_TEXTSMALL_WIDTH 16
 #define SPRITE_TEXTSMALL_HEIGHT SPRITE_TEXTSMALL_WIDTH
 
-#define FPSDISP_X (150)
-#define FPSDISP_Y (5)
+#define TEXTURE_WIDTH 2048
+#define TEXTURE_HEIGHT TEXTURE_WIDTH
 
 #define BACKGROUND_SHAKE_START_RATE 30 //how much shake to start
 #define BACKGROUND_SHAKE_DECAY_RATE 1 //how fast it will decay
 #define BACKGROUND_SHAKE_DIV 10 //reduce shake effect
+
+#define SPRITE_COLOR_BLINK_R 100
+#define SPRITE_COLOR_BLINK_G 100
+#define SPRITE_COLOR_BLINK_B 100
+
+#define SPRITE_COLOR_ALT_R 255
+#define SPRITE_COLOR_ALT_G 120
+#define SPRITE_COLOR_ALT_B 255
+
+#define SPRITE_COLOR_BLINK_ALT_R 150
+#define SPRITE_COLOR_BLINK_ALT_G 20
+#define SPRITE_COLOR_BLINK_ALT_B 100
 
 #define SPRITE_FILE_BASE "graphics" FILE_DIR
 
@@ -43,6 +55,37 @@
 #define SPRITE_TEXTSMALL_FILE SPRITE_FILE_BASE "fontSmall.png"
 
 #define BACKGROUND_FILE SPRITE_FILE_BASE "Backgrounds.png"
+
+//--graphics effects--
+#define POINT_LIGHT_X BASE_RES_WIDTH_HALF
+#define POINT_LIGHT_Y (BASE_RES_HEIGHT_HALF)
+#define POINT_LIGHT_MAX_DIST 400
+#define POINTLIGHT_BOX_WIDTH 12 //the side length of eatch light box (can be: 1, 2, 3, 4, 5, 6, 10, 12, 15, 20, 30, 60)
+
+#define POINTLIGHT_BOX_WIDTH_HALF (POINTLIGHT_BOX_WIDTH / 2)
+#define POINTLIGHT_BOX_WIDTH_MAX (BASE_RES_WIDTH / POINTLIGHT_BOX_WIDTH)
+
+#define POINTLIGHT_BOX_HEIGTH POINTLIGHT_BOX_WIDTH
+#define POINTLIGHT_BOX_HEIGTH_HALF (POINTLIGHT_BOX_HEIGTH / 2)
+#define POINTLIGHT_BOX_HEIGTH_MAX (BASE_RES_HEIGHT / POINTLIGHT_BOX_HEIGTH)
+
+#define POINT_LIGHT_MAX_BOXES (POINTLIGHT_BOX_WIDTH_MAX * POINTLIGHT_BOX_HEIGTH_MAX)
+
+#define POINT_LIGHT_X_BOXSPACE (POINT_LIGHT_X / POINTLIGHT_BOX_WIDTH)
+#define POINT_LIGHT_Y_BOXSPACE (POINT_LIGHT_Y / POINTLIGHT_BOX_HEIGTH)
+#define POINTLIGHT_DIST_MAX_BOXSPACE (POINT_LIGHT_MAX_DIST / POINTLIGHT_BOX_WIDTH)
+
+//light map bounds
+#define POINTLIGHT_TOP_MAX (SPRITE_HEIGHT_HALF / POINTLIGHT_BOX_HEIGTH) 
+#define POINTLIGHT_BOTTOM_MAX ((BASE_RES_HEIGHT - SPRITE_HEIGHT_HALF) / POINTLIGHT_BOX_HEIGTH)
+#define POINTLIGHT_LEFT_MAX (SPRITE_WIDTH_HALF / POINTLIGHT_BOX_WIDTH)
+#define POINTLIGHT_RIGHT_MAX ((BASE_RES_WIDTH - SPRITE_WIDTH_HALF) / POINTLIGHT_BOX_WIDTH)
+
+#define POINT_LIGHT_R 248
+#define POINT_LIGHT_G 248
+#define POINT_LIGHT_B 3
+#define POINT_LIGHT_A 20
+#define POINT_LIGHT_FLICKER_OFFSET 100
 
 
 //sound
@@ -137,8 +180,8 @@ enum MUSIC_ENUM {
 
 //timing
 #define TARGET_FRAME_RATE 60 //in FPS
-#define MS_TILL_UPDATE (1000 / TARGET_FRAME_RATE - 1) //game logic update rate, this rate will be used (if vsynce is slower that will be used). -1 to round down for headroom
-#define MS_TIME_SHIFT_MASK 3 //used for setting the max slowdown when adjusting game speed
+#define MS_TILL_UPDATE (1000 / TARGET_FRAME_RATE) //game logic update rate, this rate will be used (if vsynce is slower that will be used). -1 to round down for headroom
+#define MS_TIME_SHIFT_MASK 1 //(1 or 3) used for setting the max slowdown when adjusting game speed
 
 #define WATCHDOD_MASK 511 //contolles the rate the watchdog send a update (inframes)
 #define WATCHDOG_MSG "WATCHDOG PING"
@@ -188,16 +231,18 @@ enum physicsMasks {
 
 #define PLAYER_JUMP 110
 #define PLAYER_DUCK_JUMP 160
-#define PLAYER_FALL_BOOST 23
+#define PLAYER_FALL_BOOST 12
 
-#define PLAYER_WALL_JUMPH 80
-#define PLAYER_WALL_JUMPV 80
+#define PLAYER_WALL_JUMPH 70
+#define PLAYER_WALL_JUMPV 70
 #define PLAYER_WALL_JUMP_TIMER 8 //number of frames away from a wall you can still do a wall jump in
+#define PLAYER_WALL_JUMP_SIDE_OFFSET 100
 
 #define PLAYER_DOUBLE_JUMP 50
 #define PLAYER_FLASH_JUMPH 43
 #define PLAYER_FLASH_JUMPV 13
 
+#define PLAYER_JUMP_COOLDOWN 10 //used if you hit your head 
 
 #define PLAYER_WIDTH 32
 #define PLAYER_HEIGHT 64
@@ -238,7 +283,7 @@ enum physicsMasks {
 #define PLAYER_DODGE_SPEED_BOOST 58
 #define PLAYER_DODGE_SPEED_BOOST_ANGLE (uint8_t)(PLAYER_DODGE_SPEED_BOOST * 0.707)
 
-#define PLAYER_BALL_TOO_FAST 100 //this value is for if you have trowing or trowing rocket combined
+#define PLAYER_BALL_TOO_FAST 110 //this value is for if you have trowing or trowing rocket combined
 #define PLAYER_LOWSPEED_TIME 30 //downt switch allagnce too fast when trown
 
 #define PLAYER_HIT_TIME 100 //cant attack and invensable, but can still move (if you get hit)
@@ -248,6 +293,9 @@ enum physicsMasks {
 #define PLAYER_MAX_SCORE 5 //match ends after somone dies more than this
 
 #define PLAYER_GAME_CLOCK_MAX (90 * TARGET_FRAME_RATE)
+
+#define PLAYER_TURN_TIME 5 //number of frames to play turn animation
+#define PLAYER_AUTO_RUN_SPEED 7 //after this amout of hspeed the player will start running
 
 #define PLAYER_BLINK_RATE 0b00000100
 #define PLAYER1_RED_DEBUG 0xFF
@@ -301,6 +349,7 @@ enum playerTimersIndex {
 
 	PLAYER_BLINK_TIMER, //display only
 	PLAYER_SOLID_TIMER, //display only
+	PLAYER_TURN_TIMER,
 
 	PLAYER_DODGE_TIMER,
 	PLAYER_DODGE_TIMER_COOLDOWN,
@@ -313,6 +362,7 @@ enum playerTimersIndex {
 	PLAYER_SPAWN_TIMER, //used to denote things that can't be done while the player is spawning
 	
 	PLAYER_WALLJUMP_TIMER,
+	PLAYER_JUMP_COOLDOWN_TIMER, //used to fix over bouce in places with short ceilings
 
 	//AI
 	PLAYER_AI_NEW_WALK_LOC,
@@ -329,30 +379,27 @@ enum playerAiMasks {
 	AI_FETCH //cetchs the ball and brings it back to you
 };
 
-#define AI_MAP_DEBUG_PLATX_LEFT 600 //helps the AI get around the platfrom on MAP_DEBUG
-#define AI_MAP_DEBUG_PLATX_RIGHT TO_FIXPOINT(BASE_RES_WIDTH - 100)
+#define AI_MAP_DEBUG_PLATX_LEFT (TO_FIXPOINT(220)) //helps the AI get around the platfrom on MAP_DEBUG
+#define AI_MAP_DEBUG_PLATX_RIGHT (TO_FIXPOINT(220 + 490))
 #define AI_MAP_DEBUG_PLATY 2000
 
 #define AI_DISTANCE_RUN 500 //stop running when this close to goal
-// AI_DISTANCE_NEW_WALK_LOC 300
-
-//#define AI_MAP_RNG_START 50
-//#define AI_MAP_RNG_MASK_LENGTH 511
 
 //miss a catch (smaller number more missing)
 #define AI_MISS_RATE_EASY 50
 #define AI_MISS_RATE_MEDIUM 128 
-#define AI_MISS_RATE_HARD 200
+#define AI_MISS_RATE_HARD 150
 
 //timer trow rate (bigger mask longer times between trows)
-#define AI_TROW_TIMER_MASK_EASY 254
 #define AI_TROW_TIMER_MASK_MEDIUM 127
-#define AI_TROW_TIMER_MASK_HARD AI_TROW_TIMER_MASK_MEDIUM
 
 #define AI_DODGE_RATE 100
 #define AI_DISTANCE_DODGE 300
 
-#define AI_RNG_KEY 5
+//how often a random key is presed, the larger the number the more often a random key will be pressed
+#define AI_RNG_KEY_EASY 15
+#define AI_RNG_KEY_MEDIUM 6
+#define AI_RNG_KEY_HARD 5
 
 //what AI gets set when players are INIT
 enum AI_GLOB_SETTING
@@ -470,13 +517,14 @@ enum padMasks
 #define P1_PAD_BUTTON_ACTION_ALT P1_PAD_BUTTON_ACTION
 #define P1_KEY_ACTION SDL_SCANCODE_V
 
-#define P1_PAD_BUTTON_RUN 0
+//NOTE: run button is free to remap (its no longer used)
+#define P1_PAD_BUTTON_RUN 5
 #define P1_PAD_BUTTON_RUN_ALT P1_PAD_BUTTON_RUN
-#define P1_KEY_RUN SDL_SCANCODE_B
+#define P1_KEY_RUN SDL_SCANCODE_N
 
-#define P1_PAD_BUTTON_DODGE 5 //dodge
+#define P1_PAD_BUTTON_DODGE 0 //dodge
 #define P1_PAD_BUTTON_DODGE_ALT 3 
-#define P1_KEY_DODGE SDL_SCANCODE_N
+#define P1_KEY_DODGE SDL_SCANCODE_B
 //end player 1 keys
 
 //player 2 keys
@@ -500,15 +548,16 @@ enum padMasks
 
 #define P2_PAD_BUTTON_ACTION P1_PAD_BUTTON_ACTION
 #define P2_PAD_BUTTON_ACTION_ALT P2_PAD_BUTTON_ACTION
-#define P2_KEY_ACTION SDL_SCANCODE_J
+#define P2_KEY_ACTION  SDL_SCANCODE_J
 
+//NOTE: run button is free to remap (its no longer used)
 #define P2_PAD_BUTTON_RUN P1_PAD_BUTTON_RUN
 #define P2_PAD_BUTTON_RUN_ALT P2_PAD_BUTTON_RUN
-#define P2_KEY_RUN SDL_SCANCODE_K
+#define P2_KEY_RUN SDL_SCANCODE_L
 
 #define P2_PAD_BUTTON_DODGE P1_PAD_BUTTON_DODGE
 #define P2_PAD_BUTTON_DODGE_ALT P1_PAD_BUTTON_DODGE_ALT
-#define P2_KEY_DODGE SDL_SCANCODE_L
+#define P2_KEY_DODGE SDL_SCANCODE_K
 //end player 2 keys
 
 //keys global
@@ -604,14 +653,14 @@ enum worldTimersIndex {
 
 //sprites
 enum spriteIndexes {
-	SPRITE_INDEX_BLANK,
-	SPRITE_INDEX_BOX, 
+	SPRITE_INDEX_BLANK, //not in use
+	SPRITE_INDEX_BOX, //not in use
 	SPRITE_INDEX_SPARK,
 	SPRITE_INDEX_SMALLBALL,
 	SPRITE_INDEX_BALLSTILL,
 	SPRITE_INDEX_BALLHRZ,
 	SPRITE_INDEX_BALLVERT,
-	SPRITE_INDEX_GROUNDSMOKE, //not in use
+	SPRITE_INDEX_SHADOW, //
 	SPRITE_INDEX_SMOKERING,
 	SPRITE_INDEX_SMALLSMOKE,
 	SPRITE_INDEX_BIGSMOKE,
@@ -619,16 +668,16 @@ enum spriteIndexes {
 	SPRITE_INDEX_PLAYERWALK,
 	SPRITE_INDEX_PLAYERCATCH,
 	SPRITE_INDEX_PLAYERUP,
-	SPRITE_INDEX_PLAYERDOWN,//not in use
-	SPRITE_INDEX_PLAYERFLAP, //used for falling
+	SPRITE_INDEX_PLAYERTURN, //not in use
+	SPRITE_INDEX_PLAYERFLAP,
 	SPRITE_INDEX_PLAYERSTAND,
 	SPRITE_INDEX_PLAYERDUCK,
-	SPRITE_INDEX_PLAYERCRAW,
+	SPRITE_INDEX_PLAYERCRAW, //not in use
 	SPRITE_INDEX_PLAYERSHEILD,
 	SPRITE_INDEX_PLAYERCLIMPUP,
 	SPRITE_INDEX_PLAYERWALLHOLD,
 	SPRITE_INDEX_PLAYERCLIMBDOWN,
-	SPRITE_INDEX_PLAYERHEADBOUNCH, //used as winning pose
+	SPRITE_INDEX_PLAYERHEADBOUNCH,
 	SPRITE_INDEX_PLAYERTROW,
 	SPRITE_INDEX_PLAYERDMG,
 	SPRITE_INDEX_PLAYER_STEAL,
@@ -643,6 +692,8 @@ enum spriteIndexes {
 //Particles
 #define PARTICLES_MAX 100
 
+//gfx effects
+#define SHADOW_OFFSET_Y 50
 
 
 //map
@@ -685,7 +736,8 @@ const uint16_t mapDebug[] = { //MAP_DEBUG
 	5, 7, 457, 33,
 	918, 13, 454, 33,
 	56, 6, 33, 845,
-	230, 280, 33, 480,
+	//middle plat
+	220, 280, 33, 490,
 };
 
 const uint16_t mapEmpy[] = {
@@ -703,20 +755,21 @@ const uint16_t mapBigS[] = {
 	//spawns
 	PLAYER_ONE_START_X + 100, PLAYER_ONE_START_Y,
 	PLAYER_TWO_START_X - 100, PLAYER_TWO_START_Y,
-	BALL1_START_X + 15, 35 + 33 + 1,
+	BALL1_START_X + 10, 35 + 33 + 1,
 	//walls
 	45, 35, 33, 870, //celing
 	45, 454, 43, 870, //ground
 	2, 44, 423, 33, //walls
 	920, 42, 425, 33,
 	//inside
-	462, 135, 215, 32
+	455, 150, 215, 35
 };
 
 
 //=== game text ===
-//#define REPLAY_TEXT "INSTANT REPLAY"
 
+#define FPSDISP_X 150
+#define FPSDISP_Y 5
 #define FPS_TEXT "FPS"
 
 #define END_TEXT_TIE "TIE"

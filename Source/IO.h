@@ -229,7 +229,7 @@ void UpdateKeyStates(void) {
 				pauseIoTimer = BLOCK_ALL_IO_TIME;
 			}
 
-			//AI fight debug
+			//AI enable debug
 			if (debugGard && FLAG_TEST(tempState, PAD_JUMP)) {
 
 				++gs.settingsAi[i];
@@ -237,46 +237,10 @@ void UpdateKeyStates(void) {
 					gs.settingsAi[i] = 0;
 				}
 
-				const uint8_t playerNumTmp = i + 1;
-
-				switch (gs.settingsAi[i])
-				{
-				case AI_SET_OFF:
-					LogTextScreen(TEXT_AI_OFF, playerNumTmp);
-					break;
-
-				case AI_SET_EASY:
-					LogTextScreen(TEXT_AI_EASY, playerNumTmp);
-					break;
-
-				case AI_SET_MEDIUM:
-					LogTextScreen(TEXT_AI_MEDIUM, playerNumTmp);
-					break;
-
-				case AI_SET_HARD:
-					LogTextScreen(TEXT_AI_HARD, playerNumTmp);
-					break;
-
-				case AI_SET_FETCH:
-					LogTextScreen(TEXT_AI_FETCH, playerNumTmp);
-					break;
-				}
+				PlayerAiSettings(gs.settingsAi[i], i);
 
 				pauseIoTimer = BLOCK_ALL_IO_TIME;
 
-			}
-
-			//AI fetch debug
-			if (debugGard && FLAG_TEST(tempState, PAD_RUN)) {
-				if (FLAG_TEST(gs.players[i].AI, AI_FETCH)) {
-					FLAG_ZERO(gs.players[i].AI, AI_ENABLED);
-					FLAG_ZERO(gs.players[i].AI, AI_FETCH);
-				}
-				else {
-					FLAG_SET(gs.players[i].AI, AI_ENABLED);
-					FLAG_SET(gs.players[i].AI, AI_FETCH);
-				}
-				pauseIoTimer = BLOCK_ALL_IO_TIME;
 			}
 
 			//global/debug key states
@@ -314,6 +278,7 @@ void UpdateKeyStates(void) {
 					if (++newMapIndex >= MAP_COUNT) {
 						newMapIndex = 0;
 					}
+					SwitchMap(newMapIndex);
 					pauseIoTimer = BLOCK_ALL_IO_TIME;
 				}
 
@@ -333,6 +298,7 @@ void UpdateKeyStates(void) {
 				if (FLAG_TEST(tempState, PAD_DODGE)) {
 					++updateLogicRateTimeShifter;
 					updateLogicRateTimeShifter &= MS_TIME_SHIFT_MASK;
+
 					pauseIoTimer = BLOCK_ALL_IO_TIME;
 				}
 

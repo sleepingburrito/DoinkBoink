@@ -5,6 +5,8 @@
 #include <stdbool.h>
 #include <float.h>
 #include <stdint.h>
+#include <math.h>
+//#include <string.h>
 #include "typedefs.h"
 #include "Tools.h"
 #include "GlobalState.h"
@@ -25,7 +27,11 @@ void InitWindow(void) {
 		printf("%s\n", SDL_GetError());
 		assert(false);
 	}
+
+	//window based full screen
 	SDL_SetWindowResizable(window, SDL_TRUE);
+
+	//real full screen
 	//SDL_SetWindowFullscreen(window, SDL_WINDOW_FULLSCREEN_DESKTOP);
 
 	windowSurface = SDL_GetWindowSurface(window);
@@ -34,23 +40,62 @@ void InitWindow(void) {
 		assert(false);
 	}
 
-	//vsynce here
+	//vsynce here and make main renderer
 	mainRenderer = SDL_CreateRenderer(window, -1, SDL_RENDERER_ACCELERATED GFX_VSYNCE);
 	if (mainRenderer == NULL) {
 		printf("%s\n", SDL_GetError());
 		assert(false);
 	}
 
+	//set alpha on
+	if (SDL_SetRenderDrawBlendMode(mainRenderer, SDL_BLENDMODE_BLEND) != 0) {
+		printf("%s\n", SDL_GetError());
+		assert(false);
+	}
+
+	//creat main renderer
 	mainDrawTexture = SDL_CreateTexture(mainRenderer, SDL_PIXELFORMAT_RGBA8888, SDL_TEXTUREACCESS_TARGET, BASE_RES_WIDTH, BASE_RES_HEIGHT);
 	if (mainDrawTexture == NULL) {
 		printf("%s\n", SDL_GetError());
 		assert(false);
 	}
 
+	//load the png loader
 	if (IMG_INIT_PNG != IMG_Init(IMG_INIT_PNG)) {
 		printf("SDL_image Error: %s\n", IMG_GetError());
 		assert(false);
 	}
+
+	//set it so the window keeps the same aspect ratio when resizing
+	if (0 != SDL_RenderSetLogicalSize(mainRenderer, BASE_RES_WIDTH, BASE_RES_HEIGHT)) {
+		printf("%s\n", SDL_GetError());
+		assert(false);
+	}
+
+	//set smooth scaling
+	if (SDL_SetHint(SDL_HINT_RENDER_SCALE_QUALITY, "0") != SDL_TRUE) {
+		printf("%s\n", SDL_GetError());
+		assert(false);
+	}
+
+	//get display rate
+	// Get current display mode of all displays.
+	for (uint8_t i = 0; i < SDL_GetNumVideoDisplays(); ++i) {
+
+		SDL_DisplayMode current;
+
+		if (SDL_GetCurrentDisplayMode(i, &current) != 0) {
+			SDL_Log("Could not get display mode for video display #%d: %s", i, SDL_GetError());
+
+		}
+		else if (current.refresh_rate > displayRefreshRate){
+			// On success, print the current display mode.
+			//SDL_Log("Display #%d: current display mode is %dx%dpx @ %dhz.", i, current.w, current.h, current.refresh_rate);
+			displayRefreshRate = (uint16_t)current.refresh_rate;
+		}
+
+	}
+
 }
 
 void SetFullScreen(const bool fullScreen) {
@@ -171,10 +216,13 @@ void DrawText(uint16_t x, uint16_t y, const bool big, const char* text) {
 			if (*text == ' ') continue;
 			//draw char
 			SDL_Rect SrcR;
-			SrcR.x = (int)(*text - ' ') * width;
-			SrcR.y = 0;
+			const int tempWidth = (*text - ' ') * width;
+			SrcR.x = tempWidth % TEXTURE_WIDTH;
+			SrcR.y = SPRITE_HEIGHT * (tempWidth / TEXTURE_WIDTH);
 			SrcR.h = hight;
 			SrcR.w = width;
+
+			
 
 			SDL_Rect DestR;
 			DestR.x = x;
@@ -292,19 +340,20 @@ void DrawSprite(const uint16_t x, const uint16_t y,
 	}
 	int8_t frameOffset = ((gs.spriteTimer >> speed) & 1);
 
+
 	//make player 2 always on the opposit frame
 	if (player2Color) {
 		frameOffset = !frameOffset;
 	}
 
 	if (blink && frameOffset) {
-		SDL_SetTextureColorMod(spriteTex, 100, 100, 100);
+		SDL_SetTextureColorMod(spriteTex, SPRITE_COLOR_BLINK_R, SPRITE_COLOR_BLINK_G, SPRITE_COLOR_BLINK_B);
 	};
 
 	if (player2Color) {
-		SDL_SetTextureColorMod(spriteTex, 255, 40, 255);
+		SDL_SetTextureColorMod(spriteTex, SPRITE_COLOR_ALT_R, SPRITE_COLOR_ALT_G, SPRITE_COLOR_ALT_B);
 		if (blink && frameOffset) {
-			SDL_SetTextureColorMod(spriteTex, 0, 40, 255);
+			SDL_SetTextureColorMod(spriteTex, SPRITE_COLOR_BLINK_ALT_R, SPRITE_COLOR_BLINK_ALT_G, SPRITE_COLOR_BLINK_ALT_B);
 		}
 	}
 
@@ -343,6 +392,8 @@ void DrawRenderToScreen(void) {
 		assert(false);
 	}
 
+	ClearScreenSoildColor();
+
 	if (SDL_RenderCopy(mainRenderer, mainDrawTexture, NULL, NULL) != 0) {
 		printf("%s\n", SDL_GetError());
 		assert(false);
@@ -352,12 +403,52 @@ void DrawRenderToScreen(void) {
 	SDL_RenderPresent(mainRenderer);
 }
 
+//used to draw diagnostic text
 void DrawTextStandAlone(const uint16_t x, const uint16_t y, const char* text) {
 	//only call once you have loaded the small font
 	//used to draw text to the screen doing the full render cycle, usefull for showing text during loading
 	PrepRendering();
+	ClearScreenSoildColor();
 	DrawText(x, y, false, text);
 	DrawRenderToScreen();
+}
+
+//effects
+void DrawBoxShadow(const boxWorldSpace* const boxIn) {
+	//draws a shadow under the box on the current loaded map
+
+	const int16_t boxCenterX = boxIn->topLeft.x - (boxIn->boxSize.width >> 1);
+
+	//find the closets ground on the loaded map
+	int16_t closetsY = -1;
+	int16_t distY = UINT8_MAX;
+	for (uint8_t i = 0; i < MAP_MAX_BLOCKS; ++i) {
+		const int16_t tmpY = REMOVE_FIXPOINT((int16_t)gs.map[i].topLeft.y - (int16_t)boxIn->bottomRight.y);
+		if (tmpY >= 0 //if its not under
+			&& tmpY < UINT8_MAX //if its not too far away
+			&& tmpY < distY //if its less than what I already found
+			&& boxIn->topLeft.x < gs.map[i].bottomRight.x
+			&& boxIn->bottomRight.x > gs.map[i].topLeft.x
+			) {
+			closetsY = gs.map[i].topLeft.y;
+			distY = tmpY;
+		}
+	}
+
+	if (closetsY) {
+		//add offsets
+		closetsY = closetsY - (TO_FIXPOINT(SPRITE_HEIGHT) - SHADOW_OFFSET_Y);
+
+		//make sure sprite will not draw off screen
+		if (closetsY > TO_FIXPOINT(SPRITE_HEIGHT) && closetsY < TO_FIXPOINT(BASE_RES_HEIGHT - SPRITE_HEIGHT)
+			&&boxCenterX > 0 && boxCenterX < TO_FIXPOINT(BASE_RES_WIDTH - SPRITE_WIDTH)) {
+
+			SDL_SetTextureAlphaMod(spriteTex, UINT8_MAX - (uint8_t)distY);
+			DrawSprite(boxCenterX, closetsY, SPRITE_INDEX_SHADOW, false, false, false, false, false);
+		}
+	}
+
+	SDL_SetTextureAlphaMod(spriteTex, UINT8_MAX);
 }
 
 //note if the number is zero it will not draw it
@@ -469,6 +560,12 @@ void LoadSprites(void) {
 
 	//make textures
 	spriteTex = SDL_CreateTextureFromSurface(mainRenderer, SpriteBufferSur);
+	//enable transparency for sprites
+	if (SDL_SetTextureBlendMode(spriteTex, SDL_BLENDMODE_BLEND) != 0) {
+		printf("%s\n", SDL_GetError());
+		assert(false);
+	}
+
 	spriteTextTexBig = SDL_CreateTextureFromSurface(mainRenderer, TextBigBufferSur);
 	backgrounds = SDL_CreateTextureFromSurface(mainRenderer, BackgroundBufferSur);
 
@@ -497,4 +594,89 @@ void ShutdownWindow(void) {
 	SDL_DestroyWindow(window);
 	SDL_QuitSubSystem(SDL_INIT_EVERYTHING);
 	SDL_Quit();
+}
+
+
+//==fun graphics effects==
+
+//used for map debug to give dynamic light effect
+void InitPointLight(void) {
+	for (uint16_t i = 0; i < POINT_LIGHT_MAX_BOXES; ++i) {
+		lightBoxs[i].w = POINTLIGHT_BOX_WIDTH;
+		lightBoxs[i].h = POINTLIGHT_BOX_HEIGTH;
+	}
+}
+
+void PointLight(void) {
+
+	//setup the boxes
+	int32_t lightBoxCount = 0;
+
+	//get no-go boxe zones
+	const float box0left = (float)REMOVE_FIXPOINT(gs.players[PLAYER_ONE].playerPhysics.postionWorldSpace.topLeft.x);
+	const float box0right = (float)REMOVE_FIXPOINT(gs.players[PLAYER_ONE].playerPhysics.postionWorldSpace.bottomRight.x);
+	const float box0top = (float)REMOVE_FIXPOINT(gs.players[PLAYER_ONE].playerPhysics.postionWorldSpace.topLeft.y);
+	const float box0bottom = (float)REMOVE_FIXPOINT(gs.players[PLAYER_ONE].playerPhysics.postionWorldSpace.bottomRight.y);
+
+	const float box1left = (float)REMOVE_FIXPOINT(gs.players[PLAYER_TWO].playerPhysics.postionWorldSpace.topLeft.x);
+	const float box1right = (float)REMOVE_FIXPOINT(gs.players[PLAYER_TWO].playerPhysics.postionWorldSpace.bottomRight.x);
+	const float box1top = (float)REMOVE_FIXPOINT(gs.players[PLAYER_TWO].playerPhysics.postionWorldSpace.topLeft.y);
+	const float box1bottom = (float)REMOVE_FIXPOINT(gs.players[PLAYER_TWO].playerPhysics.postionWorldSpace.bottomRight.y);
+
+	const float box2left = (float)REMOVE_FIXPOINT(gs.ball.ballPhysics.postionWorldSpace.topLeft.x);
+	const float box2right = (float)REMOVE_FIXPOINT(gs.ball.ballPhysics.postionWorldSpace.bottomRight.x);
+	const float box2top = (float)REMOVE_FIXPOINT(gs.ball.ballPhysics.postionWorldSpace.topLeft.y);
+	const float box2bottom = (float)REMOVE_FIXPOINT(gs.ball.ballPhysics.postionWorldSpace.bottomRight.y);
+	
+	//trace light rays
+	for (int32_t x = POINTLIGHT_LEFT_MAX; x < POINTLIGHT_RIGHT_MAX; ++x) {
+
+		const float fx = (float)x;
+		const double subX = POINT_LIGHT_X_BOXSPACE - (double)fx;
+		const double doubleX = (subX * subX);
+
+		for (int32_t y = POINTLIGHT_TOP_MAX; y < POINTLIGHT_BOTTOM_MAX; ++y) {
+
+			//loop setup
+			bool notInObj = true;
+
+			const float fy = (float)y;
+			const double subY = POINT_LIGHT_Y_BOXSPACE - (double)fy;
+			const double angle = (float)atan2(subY, subX);
+			const float cosSave = (float)cos(angle);
+			const float sinSave = (float)sin(angle);
+			const float dist = (float)sqrt(doubleX + (subY * subY));
+
+			if (dist > POINTLIGHT_DIST_MAX_BOXSPACE)
+				continue;
+
+			for(float i = 0; i < dist && notInObj; ++i){
+
+				const float xCheck = (fx + cosSave * i) * POINTLIGHT_BOX_WIDTH + POINTLIGHT_BOX_WIDTH_HALF;
+				const float yCheck = (fy + sinSave * i) * POINTLIGHT_BOX_HEIGTH + POINTLIGHT_BOX_HEIGTH_HALF;
+				
+
+				//test if a point is in a obj
+				notInObj = (
+								!(xCheck > box0left && xCheck < box0right && yCheck > box0top && yCheck < box0bottom)
+							&& !(xCheck > box1left && xCheck < box1right && yCheck > box1top && yCheck < box1bottom)
+							&& !(xCheck > box2left && xCheck < box2right && yCheck > box2top && yCheck < box2bottom)
+							);
+
+			}
+
+			//draw a light box
+			if (notInObj) {
+				lightBoxs[lightBoxCount].x = x * POINTLIGHT_BOX_WIDTH;
+				lightBoxs[lightBoxCount].y = y * POINTLIGHT_BOX_HEIGTH;
+				lightBoxCount++;
+			}
+
+		}//end of y loop
+	}//end of x loop
+
+	//draw
+	const uint8_t flameFlicker = ((uint8_t)(gs.spriteTimer ^ gs.rngSeed ^ lightBoxCount) < 5  || gs.spriteTimer < 4) ? POINT_LIGHT_FLICKER_OFFSET : 0;
+	SDL_SetRenderDrawColor(mainRenderer, POINT_LIGHT_R, POINT_LIGHT_G - flameFlicker, POINT_LIGHT_B, POINT_LIGHT_A);
+	SDL_RenderFillRects(mainRenderer, lightBoxs, lightBoxCount);
 }
