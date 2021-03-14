@@ -1,15 +1,15 @@
-#pragma once
-//#include <stdint.h>
+#ifndef CONST_H
+#define CONST_H
 
-//Game Info
+//game Info
 #define GAME_NAME "DoinkBoink"
-#define GAME_VS "0.2"
+#define GAME_VS "0.41"
 
-//file
+//directory separators
 #ifdef _WIN32
-	#define FILE_DIR "\\" //windows dir
+	#define FILE_DIR "\\" //windows
 #else
-	#define FILE_DIR "/" //linux dir
+	#define FILE_DIR "/" //linux
 #endif
 
 //graphics
@@ -22,15 +22,17 @@
 #define SPRITE_WIDTH_HALF (SPRITE_WIDTH / 2)
 #define SPRITE_WIDTH_FORTH (SPRITE_WIDTH_HALF / 2)
 
-#define SPRITE_HEIGHT SPRITE_WIDTH
+#define SPRITE_HEIGHT (SPRITE_WIDTH)
 #define SPRITE_HEIGHT_HALF (SPRITE_HEIGHT / 2)
 #define SPRITE_HEIGHT_FORTH (SPRITE_HEIGHT_HALF / 2)
 
 #define SPRITE_TEXTSMALL_WIDTH 16
-#define SPRITE_TEXTSMALL_HEIGHT SPRITE_TEXTSMALL_WIDTH
+#define SPRITE_TEXTSMALL_HEIGHT (SPRITE_TEXTSMALL_WIDTH)
 
 #define TEXTURE_WIDTH 2048
 #define TEXTURE_HEIGHT TEXTURE_WIDTH
+
+#define GFX_VSYNCE | SDL_RENDERER_PRESENTVSYNC
 
 #define BACKGROUND_SHAKE_START_RATE 30 //how much shake to start
 #define BACKGROUND_SHAKE_DECAY_RATE 1 //how fast it will decay
@@ -48,6 +50,8 @@
 #define SPRITE_COLOR_BLINK_ALT_G 20
 #define SPRITE_COLOR_BLINK_ALT_B 100
 
+#define BASE_BG_COLOR 5 //RGB are all set to this value
+
 #define SPRITE_FILE_BASE "graphics" FILE_DIR
 
 #define SPRITE_FILE SPRITE_FILE_BASE "sprites.png"
@@ -60,7 +64,7 @@
 #define POINT_LIGHT_X BASE_RES_WIDTH_HALF
 #define POINT_LIGHT_Y (BASE_RES_HEIGHT_HALF)
 #define POINT_LIGHT_MAX_DIST 400
-#define POINTLIGHT_BOX_WIDTH 12 //the side length of eatch light box (can be: 1, 2, 3, 4, 5, 6, 10, 12, 15, 20, 30, 60)
+#define POINTLIGHT_BOX_WIDTH 12 //the side length of eatch light box (ex: 3, 4, 5, 6, 10, 12, 15, 20, 30, 60)
 
 #define POINTLIGHT_BOX_WIDTH_HALF (POINTLIGHT_BOX_WIDTH / 2)
 #define POINTLIGHT_BOX_WIDTH_MAX (BASE_RES_WIDTH / POINTLIGHT_BOX_WIDTH)
@@ -93,6 +97,12 @@
 #define SEFFECTS_BALL_MIN_SPEED 40
 #define SEFFECTS_BALL_SOUND_COUNT 3
 
+#define SOUND_SDL_INIT_SETTINGS (MIX_INIT_FLAC | MIX_INIT_OGG)
+#define SOUND_BASE_SAMPLE_RATE 44100
+#define SOUND_CHANNEL_COUNT 2
+#define SOUND_SIMPLE_BUFFER_SIZE 1024
+
+//sound files
 #define SOUND_FILE_BASE "sound" FILE_DIR
 
 //effects
@@ -136,7 +146,7 @@
 
 
 enum SOUNDS_EFFECTS {
-	SOUND_EFFECT_TEST,
+	SOUND_EFFECT_TEST, //used for catching a ball that was charged
 	SOUND_EFFECT_BELLRING,
 	SOUND_EFFECT_BOOM,
 	SOUND_EFFECT_BOUNCE1,
@@ -180,12 +190,13 @@ enum MUSIC_ENUM {
 
 //timing
 #define TARGET_FRAME_RATE 60 //in FPS
-#define MS_TILL_UPDATE (1000 / TARGET_FRAME_RATE) //game logic update rate, this rate will be used (if vsynce is slower that will be used). -1 to round down for headroom
+#define MS_TILL_UPDATE (1000 / TARGET_FRAME_RATE - 1) //game logic update rate, this rate will be used (if vsynce is slower that will be used). -1 to round down for headroom
 #define MS_TIME_SHIFT_MASK 1 //(1 or 3) used for setting the max slowdown when adjusting game speed
 
-#define WATCHDOD_MASK 511 //contolles the rate the watchdog send a update (inframes)
+#define WATCHDOD_MASK 511 //controls the rate the watchdog send an update (in frames)
 #define WATCHDOG_MSG "WATCHDOG PING"
 
+#define MINIMIZED_PAUSED_TIME 10
 
 //fixed point
 #define FIX_POINT_OFFSET 3
@@ -195,7 +206,7 @@ enum MUSIC_ENUM {
 #define FLAG_HALF_LENGTH (FLAG_LENGTH >> 1) 
 
 //game physics
-#define MAX_SPEED_FIXPOINT (UINT8_MAX >> FIX_POINT_OFFSET)
+#define MAX_SPEED_FIXPOINT ((UINT8_MAX >> FIX_POINT_OFFSET) - 0)
 #define MAX_SPEED UINT8_MAX
 #define GRAVITY 9
 //for (double i = 0; i < 256; ++i) printf("%d,", (int)(i * 0.99));
@@ -215,9 +226,11 @@ const int8_t SIN_TABLE[UINT8_MAX + 1] = { 0,3,6,9,12,15,18,21,25,28,31,34,37,40,
 //physics masks
 enum physicsMasks {
 	PHYSICS_BOUNCE,
-	PHYSICS_ONGROUND, //set when player was in ground last frame
-	PHYSICS_IN_WALL, //set when player hits any wall in all 4 dirs
-	PHYSICS_IN_HORIZONTAL_WALL, //set if hit wall on x axis
+	PHYSICS_ONGROUND, //read only, is set when player was in ground last frame
+	PHYSICS_IN_WALL, //read only, is set when player hits any wall in all 4 dirs
+
+	PHYSICS_IN_HORIZONTAL_WALL, //read only, set if hit wall on x axis
+
 	PHYSICS_BRAKES,
 	PHYSICS_DISABLE_GRAVITY
 };
@@ -235,7 +248,7 @@ enum physicsMasks {
 
 #define PLAYER_WALL_JUMPH 70
 #define PLAYER_WALL_JUMPV 70
-#define PLAYER_WALL_JUMP_TIMER 8 //number of frames away from a wall you can still do a wall jump in
+#define PLAYER_WALL_JUMP_TIMER 9 //number of frames away from a wall you can still do a wall jump in
 #define PLAYER_WALL_JUMP_SIDE_OFFSET 100
 
 #define PLAYER_DOUBLE_JUMP 50
@@ -248,30 +261,30 @@ enum physicsMasks {
 #define PLAYER_HEIGHT 64
 #define PLAYER_HEIGHT_DUCKING_SHIFT 2
 
-//these spawn locaions are only used on symetrical maps, spawn is set in map data
+//these spawn locations are used only sometimes 
 #define PLAYER_ONE_START_X (BASE_RES_WIDTH / 4 - SPRITE_WIDTH_HALF)
 #define PLAYER_ONE_START_Y 330
 
 #define PLAYER_TWO_START_X (BASE_RES_WIDTH / 4 * 3 - SPRITE_WIDTH_HALF)
 #define PLAYER_TWO_START_Y 330
-//end of spawn locaions
+//end of spawn locations
 
 #define PLAYER_STUN_START 100
 
-//trow speed test
-#define PLAYER_TROW_HIGHT_OFFSET (PLAYER_HEIGHT / 4)
+//throw speed test
+#define PLAYER_THROW_HIGHT_OFFSET (PLAYER_HEIGHT / 4)
 #define PLAYER_CHARGE_MAX_TIME 20
 #define PLAYER_CHARGE_BITSHIFTER 1 
 #define PLAYER_CHARGE_STUN_RUNOFF 5 //little stun after attack
-#define PLAYER_CHARGE_MIN_GRAVITY_TRUST 3 //ball keeps gravity if trust is smaller than this
+#define PLAYER_CHARGE_MIN_GRAVITY_TRUST 3 //ball keeps gravity if thrust is smaller than this
 
 //if you make this too big it will wrap around
-#define BASE_TROW_MUTI 19 
-#define BASE_TROW_MUTI_PURE_UP 25 //used only for pure up trows
-#define PLAYER_TROW_RECOIL_SHIFT 2
-#define TROW_STUN 25 //after a trow you cant attack for this long (but still catch)
+#define BASE_THROW_MUTI 19 
+#define BASE_THROW_MUTI_PURE_UP 25 //used only for pure up throws
+#define PLAYER_THROW_RECOIL_SHIFT 2
+#define THROW_STUN 25 //after a throw you cant attack for this long (but still catch)
 
-#define PLAYER_HEAD_BALL_BOUNCE 10 //kinda just for fun, can bouce ball off head
+#define PLAYER_HEAD_BALL_BOUNCE 15 //kinda just for fun, can bouce ball off head
 
 #define PLAYER_CATCH_TIME 14
 #define PLAYER_CATCH_TIME_STUN (PLAYER_CATCH_TIME + 10)
@@ -283,19 +296,19 @@ enum physicsMasks {
 #define PLAYER_DODGE_SPEED_BOOST 58
 #define PLAYER_DODGE_SPEED_BOOST_ANGLE (uint8_t)(PLAYER_DODGE_SPEED_BOOST * 0.707)
 
-#define PLAYER_BALL_TOO_FAST 110 //this value is for if you have trowing or trowing rocket combined
-#define PLAYER_LOWSPEED_TIME 30 //downt switch allagnce too fast when trown
+#define PLAYER_BALL_TOO_FAST 110 //ball can hurt when moving faster than this
+#define PLAYER_LOWSPEED_TIME 30 //time for BALL_LOWSPEED_IGNOR
 
-#define PLAYER_HIT_TIME 100 //cant attack and invensable, but can still move (if you get hit)
-#define PLAYER_SCORE_PAUSE_GAME 18 //in frames for dramtic effect, pauses game play
+#define PLAYER_HIT_TIME 100 //cant attack and invincible, but can still move (if you get hit)
+#define PLAYER_SCORE_PAUSE_GAME 18 //in frames for dramatic effect, pauses game play
 #define PLAYER_DEAD_BOUNCE_TIME 35 //you bounce during this time
 
-#define PLAYER_MAX_SCORE 5 //match ends after somone dies more than this
+#define PLAYER_MAX_SCORE 5 //match ends after somone get hit more than this
 
 #define PLAYER_GAME_CLOCK_MAX (90 * TARGET_FRAME_RATE)
 
 #define PLAYER_TURN_TIME 5 //number of frames to play turn animation
-#define PLAYER_AUTO_RUN_SPEED 7 //after this amout of hspeed the player will start running
+#define PLAYER_AUTO_RUN_SPEED 5 //after this amout of hspeed, the player will start running
 
 #define PLAYER_BLINK_RATE 0b00000100
 #define PLAYER1_RED_DEBUG 0xFF
@@ -333,10 +346,10 @@ enum playerMasks
 	PLAYER_SECOND, //this flag is set if your second player, else your first
 	PLAYER_FACING_RIGHT,
 	PLAYER_DUCKING,
-	PLAYER_TROW_LEFT,
-	PLAYER_TROW_UP,
-	PLAYER_TROW_H,
-	PLAYER_TROW_V,
+	PLAYER_THROW_LEFT,
+	PLAYER_THROW_UP,
+	PLAYER_THROW_H,
+	PLAYER_THROW_V,
 	PLAYER_HAS_DOUBLE_JUMP
 };
 
@@ -347,14 +360,14 @@ enum playerTimersIndex {
 	
 	PLAYER_CATCH_TIMER,
 
-	PLAYER_BLINK_TIMER, //display only
-	PLAYER_SOLID_TIMER, //display only
+	PLAYER_BLINK_TIMER, //display only, dont set
+	PLAYER_SOLID_TIMER, //display only, dont set
 	PLAYER_TURN_TIMER,
 
 	PLAYER_DODGE_TIMER,
 	PLAYER_DODGE_TIMER_COOLDOWN,
 
-	PLAYER_CHARGE_TROW_TIMER,
+	PLAYER_CHARGE_THROW_TIMER,
 	PLAYER_STEAL_PROTECTION_TIMER,
 
 	PLAYER_CANT_ATTACK_TIMER,
@@ -376,27 +389,27 @@ enum playerTimersIndex {
 //======
 enum playerAiMasks {
 	AI_ENABLED, //normal AI
-	AI_FETCH //cetchs the ball and brings it back to you
+	AI_FETCH //gets the ball and brings it back to you
 };
 
-#define AI_MAP_DEBUG_PLATX_LEFT (TO_FIXPOINT(220)) //helps the AI get around the platfrom on MAP_DEBUG
+#define AI_MAP_DEBUG_PLATX_LEFT (TO_FIXPOINT(220)) //helps the AI get around the platform on MAP_DEBUG
 #define AI_MAP_DEBUG_PLATX_RIGHT (TO_FIXPOINT(220 + 490))
 #define AI_MAP_DEBUG_PLATY 2000
 
-#define AI_DISTANCE_RUN 500 //stop running when this close to goal
+#define AI_DISTANCE_RUN 500 //stops running when this close to goal
 
 //miss a catch (smaller number more missing)
 #define AI_MISS_RATE_EASY 50
 #define AI_MISS_RATE_MEDIUM 128 
 #define AI_MISS_RATE_HARD 150
 
-//timer trow rate (bigger mask longer times between trows)
-#define AI_TROW_TIMER_MASK_MEDIUM 127
+//timer throw rate (bigger mask longer times between throws)
+#define AI_THROW_TIMER_MASK_MEDIUM 127
 
 #define AI_DODGE_RATE 100
 #define AI_DISTANCE_DODGE 300
 
-//how often a random key is presed, the larger the number the more often a random key will be pressed
+//how often a random key is pressed, the larger the number the more often a random key will be pressed
 #define AI_RNG_KEY_EASY 15
 #define AI_RNG_KEY_MEDIUM 6
 #define AI_RNG_KEY_HARD 5
@@ -416,13 +429,15 @@ enum AI_GLOB_SETTING
 //
 //AI end
 
-//==instant replay==
-#define REPLAY_START_IN 40 //how long till the reaply starts once called
-#define REPLAY_FRAME_START 120 //keep under UIN8_MAX, number of frames to start back in recoding
+//==instant replay / rewind==
+#define REPLAY_START_IN 40 //how long till the replay starts once called
+#define REPLAY_FRAME_START 120 //keep under UIN8_MAX, number of frames to start back in a recoding
 
 #define REPLAY_TEXT_X 350
 #define REPLAY_TEXT_Y (BASE_RES_HEIGHT / 2 - SPRITE_HEIGHT_HALF)
 #define REPLAY_BLINK_MASK 8
+
+#define REWIND_FRAM_SKIP_FAST 10
 //
 
 
@@ -513,7 +528,7 @@ enum padMasks
 #define P1_PAD_BUTTON_JMP_ALT P1_PAD_BUTTON_JMP
 #define P1_KEY_JMP SDL_SCANCODE_C
 
-#define P1_PAD_BUTTON_ACTION 2 //trow / catch
+#define P1_PAD_BUTTON_ACTION 2 //throw / catch
 #define P1_PAD_BUTTON_ACTION_ALT P1_PAD_BUTTON_ACTION
 #define P1_KEY_ACTION SDL_SCANCODE_V
 
@@ -564,7 +579,7 @@ enum padMasks
 #define PAD_DEBUG_START 6 //(select) hold this down to allow any debugging
 #define KEY_DEBUG_START SDL_SCANCODE_0
 
-#define PAD_DEBUG_SWAP 5 //swaps players contollors, right bumper
+#define PAD_DEBUG_SWAP 5 //swaps players controllers, right bumper
 #define KEY_DEBUG_SWAP SDL_SCANCODE_1
 
 #define PAD_DEBUG_REINIT 8 //left analog click in
@@ -573,7 +588,7 @@ enum padMasks
 #define PAD_DEBUG_REWIND 9 //click in right joystick
 #define KEY_DEBUG_REWIND SDL_SCANCODE_3
 
-#define PAD_DEBUG_CHANGE_MAP 4 //left bumper (if a contollr gets disconnted run this)
+#define PAD_DEBUG_CHANGE_MAP 4 //left bumper (if a controller gets discounted run this)
 #define KEY_DEBUG_CHANGE_MAP SDL_SCANCODE_4
 
 #define PAD_PAUSE 7 //start button
@@ -603,9 +618,10 @@ enum screenStateIndex {
 	SCREEN_STATE_NON
 };
 
-#define BLOCK_ALL_IO_TIME 18 //in frames, use to debouce contorlls
+#define BLOCK_ALL_IO_TIME 18 //in frames, use to debounce controls
 
 //End of Game Pad
+
 
 //Ball
 enum ballMasks {
@@ -613,11 +629,11 @@ enum ballMasks {
 	BALL_ON_PLAYER2,//if player 2, if not assume player 1
 	BALL_INSIDE_PLAYER,
 	BALL_CHARGED, //if this bit is set the ball may be tossed at max charge (for parry)
-	BALL_NEUTRAL, //if set cant hurt player, else its moving fast enough to hurt player
+	BALL_NEUTRAL, //if set cant hurt player
 	BALL_TOO_FAST
 };
 
-//these spawn locaions are only used on symetrical maps
+//these spawn locations are only used sometimes
 #define BALL1_START_X (BASE_RES_WIDTH / 2 - SPRITE_WIDTH_HALF)
 #define BALL1_START_Y 200
 //end of spawn
@@ -664,23 +680,24 @@ enum spriteIndexes {
 	SPRITE_INDEX_SMOKERING,
 	SPRITE_INDEX_SMALLSMOKE,
 	SPRITE_INDEX_BIGSMOKE,
-	SPRITE_INDEX_PLAYERRUN,
-	SPRITE_INDEX_PLAYERWALK,
+
+	SPRITE_INDEX_PLAYERRUN, 
+	SPRITE_INDEX_PLAYERWALK, 
 	SPRITE_INDEX_PLAYERCATCH,
-	SPRITE_INDEX_PLAYERUP,
+	SPRITE_INDEX_PLAYERUP, 
 	SPRITE_INDEX_PLAYERTURN, //not in use
-	SPRITE_INDEX_PLAYERFLAP,
-	SPRITE_INDEX_PLAYERSTAND,
-	SPRITE_INDEX_PLAYERDUCK,
+	SPRITE_INDEX_PLAYERFLAP, 
+	SPRITE_INDEX_PLAYERSTAND, 
+	SPRITE_INDEX_PLAYERDUCK, 
 	SPRITE_INDEX_PLAYERCRAW, //not in use
-	SPRITE_INDEX_PLAYERSHEILD,
-	SPRITE_INDEX_PLAYERCLIMPUP,
+	SPRITE_INDEX_PLAYERSHEILD, 
+	SPRITE_INDEX_PLAYERCLIMPUP, 
 	SPRITE_INDEX_PLAYERWALLHOLD,
 	SPRITE_INDEX_PLAYERCLIMBDOWN,
 	SPRITE_INDEX_PLAYERHEADBOUNCH,
-	SPRITE_INDEX_PLAYERTROW,
+	SPRITE_INDEX_PLAYERTHROW,
 	SPRITE_INDEX_PLAYERDMG,
-	SPRITE_INDEX_PLAYER_STEAL,
+	SPRITE_INDEX_PLAYER_STEAL, 
 
 	SPRITE_INDEX_COUNT
 };
@@ -721,7 +738,7 @@ enum MapSpawnIndexes {
 //map background image data
 
 //map data below
-//note walls must be ticker than max speed and walls should not overlap
+//note walls must be thicker than max speed and walls should not overlap
 //player1 x, y
 //player2 x, y
 //ball x, y
@@ -767,6 +784,7 @@ const uint16_t mapBigS[] = {
 
 
 //=== game text ===
+#define TOOLS_STRING_BUFFER 2048
 
 #define FPSDISP_X 150
 #define FPSDISP_Y 5
@@ -800,7 +818,10 @@ const uint16_t mapBigS[] = {
 //text log screen
 #define TEXT_LOG_CHARS 255 //max chars in message
 #define TEXT_LOG_LINES 5 //max lines on screen
-#define TEXT_LOG_TIME 120 //frames on screen
+#define TEXT_LOG_TIME 70 //frames on screen
 #define TEXT_LOG_X 300
 #define TEXT_LOG_Y 50
 #define TEXT_LOG_Y_BUFFER 4
+#define TEXT_LOG_BLINK (0.2) //if the timer less than this % the text will blink
+
+#endif

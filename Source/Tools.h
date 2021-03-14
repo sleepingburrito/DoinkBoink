@@ -1,27 +1,31 @@
-#pragma once
+#ifndef TOOLS_H
+#define TOOLS_H
+
 #include <SDL.h>
-#include <stdint.h>
-#include "Const.h"
-#include "typedefs.h"
+#include "GameStructs.h"
 
 //macros
+//
+//fix point tools
 #define REMOVE_FIXPOINT(rawLoc) ((rawLoc) >> FIX_POINT_OFFSET)
 #define TO_FIXPOINT(val) ((val) << FIX_POINT_OFFSET)
+//flag helpers
 #define ENUM_TO_MASK_BIT(ENUM)  (1 << (ENUM))
 #define ENUM_TO_MASK_BYTE(ENUM)  (8 *(ENUM))
-
+//flags
 #define FLAG_SET(flagToSet, enumVal) ((flagToSet) |= ENUM_TO_MASK_BIT(enumVal))
 #define FLAG_ZERO(flagToZero, enumVal) ((flagToZero) &= ~ENUM_TO_MASK_BIT(enumVal))
 #define FLAG_TEST(flagToTest, enumVal) ((((flagToTest) & ENUM_TO_MASK_BIT(enumVal)) != 0))
-
+//math
 #define POW2(x) ((x)*(x))
-
-//io.h
+//pad
 #define PADIO_INDEX(PAD_STATE, PLAYER) ((PAD_STATE) + (PLAYER) * PAD_STATE_COUNT)
-
+//
 //end of macros
 
+
 //mem tools
+//
 void ZeroOut(uint8_t * const zeroMe, const size_t byteCount) {
 	if (zeroMe == NULL) {
 #ifdef NDEBUG
@@ -51,50 +55,71 @@ void ByteCopy(const uint8_t* const from, uint8_t* const to, const size_t byteCou
 		to[i] = from[i];
 	}
 }
+//
 //end of mem
 
-//string tools
-char* BufferStringAppend(const bool reset, const char* const textToAdd) {
-	//adds text to a internal string and returns a pointer to it
 
-#define BufferSize 2048
-	static char buffer[BufferSize];
+//string
+//
+char* BufferStringAppend(const bool reset, const char* const textToAdd) {
+
+	//adds text to a internal string and returns a pointer to it
+	//this is used as a temp string for drawing text to the screen or to load files
+
+	static char buffer[TOOLS_STRING_BUFFER];
 	static uint16_t size = 0;
 
+	if (textToAdd == NULL) {
+#ifdef NDEBUG
+		return buffer;
+#else
+		printf("ByteCopy Null ptr");
+		assert(false);
+#endif
+}
+
 	if (reset) {
-		ZeroOut((uint8_t*)buffer, BufferSize);
+		ZeroOut((uint8_t*)buffer, TOOLS_STRING_BUFFER);
 		size = 0;
 	}
 
 	for (uint16_t i = 0; textToAdd[i] != 0; i++) {
 		buffer[size] = textToAdd[i];
 		++size;
-		if (size >= BufferSize - 1) {
-			printf("BufferStringAppend string lengh too long \n buffer: %s \n to add: %s", buffer, textToAdd);
+		if (size >= TOOLS_STRING_BUFFER - 1) {
+#ifdef NDEBUG
+#else
+			printf("BufferStringAppend string lengh too long \n buffer: %s \n to add: %s\n", buffer, textToAdd);
 			assert(false);
+#endif
+			--size;
 			break;
 		}
 	}
+
 	return buffer;
-#undef BufferSize
 }
 
 char* BufferStringMakeBaseDir(const char * const fileName) {
+	//Use SDL to get the base path of the exe and append the file name we are looking for and return that
 	BufferStringAppend(true, SDL_GetBasePath());
 	return BufferStringAppend(false, fileName);
 }
-//end of string tools
+//
+//end of string
 
 
-//timing tools
-//these are in miliseconds
+//timing
+//these are in milliseconds
+//
 int64_t MsClock(void) {
-	//how many ms the app has been running
+	//find out how many how many ms the app has been running
 	static int64_t MasterMsClock = 0;
 	static int32_t timeLast = 0;
 	static int64_t MasterMsClockOld = 0;
 	int32_t delta = 0;
 
+	//rollover protection
 	if ((int32_t)SDL_GetTicks() >= timeLast) {
 		delta = SDL_GetTicks() - timeLast;
 	}
@@ -105,31 +130,19 @@ int64_t MsClock(void) {
 	timeLast += delta;
 	MasterMsClock += delta;
 
+#ifdef NDEBUG
+#else
 	if (MasterMsClockOld > MasterMsClock) {
 		printf("MasterMsClock overflow\n");
 		assert(false);
 	}
+#endif
+
 	return MasterMsClockOld = MasterMsClock;
 }
 
-//void DelayMainLoop(void) {
-//	//limit update rate of loop and tick ms clock
-//	//note only run once a frame
-//	static int64_t updateRateTimer = 0;
-//	
-//	static int64_t frameTimeTimer = 0;
-//	static int32_t frameTime = 0;
-//	
-//	if (MsClock() < updateRateTimer) {
-//		//limit to MS_TILL_UPDATE
-//		const int32_t delay = (int32_t)(updateRateTimer - MsClock());
-//		SDL_Delay(delay);
-//	}
-//	updateRateTimer = MsClock() + (MS_TILL_UPDATE);
-//}
-
 int32_t FPScounterMs(void) {
-	//run only once evey frame, after 1 second it will have accurite fps
+	//run this only once evey frame, after 1 second it will display fps
 	static int64_t fpsCounterTimer = 0;
 	static int32_t fps = 0;
 	static int32_t fpsDisp = 0;
@@ -141,50 +154,60 @@ int32_t FPScounterMs(void) {
 	}
 	return fpsDisp;
 }
+//this timer is in frames
+void DiscernmentAllTimers(timer* timers, uint8_t count) {
+	if (timers == NULL) {
+#ifdef NDEBUG
+		return;
+#else
+		printf("DiscernmentAllTimers Null ptr");
+		assert(false);
+#endif
+	}
 
-//double PrefFpsCounter(void) {
-//	static Uint64 lastframe = 1;
-//	static Uint64 delta = 1;
-//	
-//	delta = (SDL_GetPerformanceCounter() - lastframe) ;
-//	lastframe = SDL_GetPerformanceCounter();
-//	
-//	return 1.0 / ((double)delta / (double)SDL_GetPerformanceFrequency());
-//}
+	//Discernment all timers but dont go below zero
+	for (uint8_t i = 0; i < count; ++i) {
+		if (timers[i] > 0) {
+			timers[i] -= 1;
+		}
+	}
+}
 //
-//double PrefDeltaTime(void) {
-//	static Uint64 lastframe = 1;
-//	static Uint64 delta = 1;
-//
-//	delta = (SDL_GetPerformanceCounter() - lastframe);
-//	lastframe = SDL_GetPerformanceCounter();
-//
-//	return	((double)delta / (double)SDL_GetPerformanceFrequency());
-//}
-//
-//Uint64 PrefDeltaTimeRaw(void) {
-//	static Uint64 lastframe = 0;
-//	Uint64 delta = 0;
-//
-//	delta = (SDL_GetPerformanceCounter() - lastframe);
-//	lastframe = SDL_GetPerformanceCounter();
-//
-//	return	delta;
-//}
-//
-//Uint64 Pref60Hz(void) {
-//	return SDL_GetPerformanceFrequency() / 61; //61 for overhead
-//}
+//end of timing
 
-//end of timing tools
 
-//flag tools
+//flag
+//
 flags BitCopy(const flags flagSource, const uint8_t offsetSource, const flags flagDest, const uint8_t offsetDest) {
 	return (flagDest & ~(1 << offsetDest)) | (((flagSource >> offsetSource) & 1) << offsetDest);
 }
 
+void CopyTestToFlag(flags* const in, const uint8_t offset, const bool test) {
+	if (NULL == in) {
+#ifdef NDEBUG
+		return;
+#else
+		printf("CopyTestToFlag Null ptr");
+		assert(false);
+#endif
+	}
+
+	if (test) {
+		FLAG_SET(*in, offset);
+	}
+	else {
+		FLAG_ZERO(*in, offset);
+	}
+}
+//
+//end of flag
+
+
 //math
+//
 void AddUint8Capped(uint8_t * const current, const uint8_t add) {
+	//it will add a number to a uint8_t but wont let it rollover
+
 	if (current == NULL) {
 #ifdef NDEBUG
 		return;
@@ -202,6 +225,8 @@ void AddUint8Capped(uint8_t * const current, const uint8_t add) {
 }
 
 void AddInt8Capped(int8_t* const current, const int8_t add) {
+	//it will add a number to a int8_t but wont let it rollover
+
 	if (current == NULL) {
 #ifdef NDEBUG
 		return;
@@ -220,36 +245,19 @@ void AddInt8Capped(int8_t* const current, const int8_t add) {
 	}
 }
 
-//find Distance leaving off the sq root
-int32_t DistancePart(uint16_t x1, uint16_t y1, uint16_t x2, uint16_t y2) {
+int32_t DistancePart(const uint16_t x1, const uint16_t y1, const uint16_t x2, const uint16_t y2) {
+	//find Distance leaving off the sq root
 	const int32_t x = (int32_t)x1 - (int32_t)x2;
 	const int32_t y = (int32_t)y1 - (int32_t)y2;
-	return x * x + y * y;
+	return POW2(x) + POW2(y);
 }
+//
 //end of math
 
-//frame timing tools
-void DiscernmentAllTimers(timer* timers, uint8_t count) {
-	if (timers == NULL) {
-#ifdef NDEBUG
-		return;
-#else
-		printf("DiscernmentAllTimers Null ptr");
-		assert(false);
-#endif
-	}
 
-	//remove 1 from all timers but dont go below zero
-	for (uint8_t i = 0; i < count; ++i) {
-		if (timers[i] > 0) {
-			timers[i] -= 1;
-		}
-	}
-}
-//end of frame timeing tools
-
-//box tools
+//box
 //note x/y are in fixpoint
+//
 void CheckBoxErrors(const boxWorldSpace* const boxIn) {
 
 	if (boxIn == NULL) {
@@ -302,7 +310,12 @@ boxWorldSpace InitBox(const location x, const location y, const dimension height
 	returnBox.boxSize.width = width;
 	returnBox.bottomRight.y = returnBox.topLeft.y + returnBox.boxSize.height;
 	returnBox.bottomRight.x = returnBox.topLeft.x + returnBox.boxSize.width;
+
+#ifdef NDEBUG
+#else
 	CheckBoxErrors(&returnBox);
+#endif
+
 	return returnBox;
 }
 
@@ -372,23 +385,27 @@ void TopOfBox(boxWorldSpace * const moveMe, const boxWorldSpace * const toHere) 
 }
 
 void BoxMoveHalfWay(boxWorldSpace* const boxMove, const boxWorldSpace* const boxMoveTo) {
-	//Sets boxMove to be halways between its current locaion and boxMoveTo
+	//Sets boxMove to be always between its current location and boxMoveTo
 	//used for linear interpolation (like to smooth out slow mo smoothing)
-	//note: use for display only. needs more testing, has bugs
+	//note: use for display only. has bugs with certain types of movements.
+	//it will try and exit early in those cases
 
 	//zero in a move two is buggy, skip it if you find one
-	if (boxMove->topLeft.x == 0 || boxMove->topLeft.y == 0) {
+	if (boxMove->topLeft.x == 0 || boxMove->topLeft.y == 0
+		|| boxMoveTo->topLeft.x == 0 || boxMoveTo->topLeft.y == 0) {
 		return;
 	}
 
-	if (boxMoveTo->topLeft.x == 0 || boxMoveTo->topLeft.y == 0) {
-		return;
-	}
+	//if (boxMoveTo->topLeft.x == 0 || boxMoveTo->topLeft.y == 0) {
+	//	return;
+	//}
 
 	const uint16_t x = (int16_t)boxMove->topLeft.x + (((int16_t)boxMove->topLeft.x - (int16_t)boxMoveTo->topLeft.x) >> 1);
 	const uint16_t y = (int16_t)boxMove->topLeft.y + (((int16_t)boxMove->topLeft.y - (int16_t)boxMoveTo->topLeft.y) >> 1);
 
 	SetBox(boxMove, x, y);
 }
+//
 //end of box tools
 
+#endif

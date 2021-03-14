@@ -1,15 +1,19 @@
-#define SDL_MAIN_HANDLED
-#include <SDL.h>
-#include <SDL_mixer.h>
-#include <SDL_image.h>
-//#include <SDL_ttf.h>
+//C libs
 #include <stdlib.h>
 #include <stdbool.h>
 #include <stdint.h>
 #include <stdio.h>
 #include <assert.h>
+#include <math.h>
+
+//SDL and SDL Addons
+#include <SDL.h>
+#include <SDL_mixer.h>
+#include <SDL_image.h>
+
+//Game Files
 #include "Const.h"
-#include "typedefs.h"
+#include "GameStructs.h"
 #include "GlobalState.h"
 #include "RandomNG.h"
 #include "Tools.h"
@@ -18,15 +22,16 @@
 #include "Map.h"
 #include "Particles.h"
 #include "Rewind.h"
-#include "IO.h"
-#include "physics.h"
+#include "GamePad.h"
+#include "Physics.h"
 #include "BaseCollision.h"
-#include "BallCode.h"
-#include "PlayerCode.h"
+#include "Ball.h"
+#include "Player.h"
 
 
 void InitGameOnly(void) {
-	//use to reset the game but keep sdl running
+	//Reset game and keep SDL running
+
 	InitMap(); //Call InitMap() and LoadMap() before calling the players or ball init (map holds spawn locations)
 	LoadMap(gs.mapIndex);
 	InitPlayers();
@@ -37,139 +42,129 @@ void InitGameOnly(void) {
 	screen = SCREEN_STATE_GAME;
 }
 
+//--Main game loop functions--
+//
+void UpdateWatchdog(void) {
+	//sends a signal that the game is not frozen
+	++WatchDogFrameCount;
+	if (0 == (WatchDogFrameCount & WATCHDOD_MASK)) {
+		printf(WATCHDOG_MSG" %d \n", WatchDogFrameCount); 
+	}
+}
+
+void PullSDLevents(void) {
+	//update SDL events, needs to happen to keep SDL happy
+	SDL_Event event;
+	SDL_PollEvent(&event);
+	if (SDL_QUIT == event.type) {
+		//if the user presses the X on the window quit
+		quitGame = true;
+	}
+}
+
+void LimitGameSpeed(void) {
+	bool fallbackGameLogicLimit = false;
+	const uint64_t timeDeltaLastFrame = MsClock() - lastLogicUpdate;
+
+	//check if the game is running too fast, if so enable logic limit
+	if (timeDeltaLastFrame < (uint64_t)(MS_TILL_UPDATE)) {
+		fallbackGameLogicLimit = true;
+	}
+
+	//check timer for game logic speed limiter
+	if (timeDeltaLastFrame >= ((uint64_t)MS_TILL_UPDATE << updateLogicRateTimeShifter)) {
+		lastLogicUpdate = MsClock();
+		updateGameLogic = true;
+	}
+
+	//if the display refresh rate is the same as target frame rate then remove frame limiter and use vsynce
+	if (0 == updateLogicRateTimeShifter
+		&& TARGET_FRAME_RATE == displayRefreshRate
+		&& false == fallbackGameLogicLimit) {
+		updateGameLogic = true;
+	}
+}
+//
+//--End main game loop functions--
+
+
+//int main(void) {
+int main(int inputCount, char** inputStrings){
 //int main(int argc, char* argv[]) {
-int main(void) {
 
-	//printf("%s\n", argv[0]);
+	//hide warnings
+	inputCount = 0;
+	inputStrings = NULL;
 
-	//debug for physics, helps make tables
-	//for (uint16_t i = 0; i < 255; ++i) {
-	//	double part = 2.0 * 3.1415926 / 255.0;
-	//	printf("%d,", (int8_t)(128.0 * sin(part * i)));
-	//}
-
-	//unused, here to make VS happy
-	//if (argc == 0) argv = NULL;
-
-	//start init one time only
+	//one time only init
 	InitWindow();
 	InitJoyPads();
-	LoadSprites();
 	InitSound();
-	LoadSounds();
-	SetMuteMusic(true);
-	SetMuteSoundEffects(false);
 	InitGameOnly();
-	InitRewind(); //debug
-	newMapIndex = MAP_DEBUG; //debug start map
+	InitRewind();
+	newMapIndex = MAP_DEBUG; //debug: starting map
 	RngInit(0);
 	SetAutoMapSwitch(false);
-	InitPointLight();
+	//SetFullScreen(true);
 
+	//debug turn AI on at start
+	//gs.settingsAi[1] = AI_SET_MEDIUM;
+	//gs.settingsAi[0] = AI_SET_MEDIUM;
+	//autoMapSwitch = true;
 
-	//tese debug turn AI on at start
-	//gs.settingsAi[1] = AI_SET_EASY;
-	//gs.settingsAi[0] = AI_SET_EASY;
-
-
-	//debug notes to undo
-	//------------------
-	//undo test
-	//disable AI
-	//enable vsynce
-	//reset default map
-	//enable frame lmiter
-	//disable map auto swithc
-
+	//test debug
+	//printf("%d\n", sizeof(globalData));
+	//InitAllPlayerData(); //weckangle
 
 
 	//main loop
 	do{
-		//loop upkeep
+		//--loop upkeep--
 		updateGameLogic = false;
+		//UpdateWatchdog();
+		PullSDLevents();
+		LimitGameSpeed();
 
-		//watchdog
-		++WatchDogFrameCount;
-		if (0 == (WatchDogFrameCount & WATCHDOD_MASK)) {
-			//printf(WATCHDOG_MSG" %d \n", WatchDogFrameCount); //debug test
+		//pause game when minimized
+		if (SDL_GetWindowFlags(window) & SDL_WINDOW_MINIMIZED) {
+			SDL_Delay(MINIMIZED_PAUSED_TIME);
+			continue;
 		}
-
-		//update sld events
-		SDL_PollEvent(&event);
-		if (SDL_QUIT == event.type) {
-			//if the user presses the X on the window quit
-			quitGame = true;
-		}
-
-		//paused when minimized
-		while (SDL_GetWindowFlags(window) & SDL_WINDOW_MINIMIZED) {
-			SDL_PollEvent(&event);
-			SDL_Delay(10);
-		}
-
-		//limit game logic speed
-		bool fallbackGameLogicLimit = false;
-		const uint64_t timeDeltaLastFrame = MsClock() - lastLogicUpdate;
-		//check if the game is running too fast, if so enable logic limit
-		if (timeDeltaLastFrame < (uint64_t)(MS_TILL_UPDATE)) {
-			fallbackGameLogicLimit = true;
-		}
-		//game logic limiter
-		if (timeDeltaLastFrame >= ((uint64_t)MS_TILL_UPDATE << updateLogicRateTimeShifter)) {
-			lastLogicUpdate = MsClock();
-			updateGameLogic = true;
-		}
-		//if the display refresh rate is the same as target frame rate then remove frame limiter and use vsynce
-		if (0 == updateLogicRateTimeShifter 
-			&& TARGET_FRAME_RATE == displayRefreshRate 
-			&& false == fallbackGameLogicLimit) {
-			updateGameLogic = true;
-		}
-		//updateGameLogic = true; //debug no frame cap
-		
-		
-		//end of loop upkeep
+		//--end of main loop upkeep--
 
 
-		//test debug
-
-
-		//game logic
+		//game logic (is ran at 60hz)
 		if (updateGameLogic) {
 			
-			//game logic upkeep
-			//set up render
+			//--game logic upkeep--
 			PrepRendering();
-			//update io
 			UpdateKeyStates();
-			//sound upkeep
 			SoundStep();
+			//--end game logic upkeep--
 
-			//screen state
+			//--screen state--
 			switch (screen) {
 			case SCREEN_STATE_MAIN_MENU:
 				break;
 
 			case SCREEN_STATE_GAME:
 
-				//map switch, use SwitchMap() to switch maps
+				//map switch, (Note: use SwitchMap() to switch maps)
 				if (newMapIndex != gs.mapIndex) {
 					gs.mapIndex = newMapIndex;
 					InitGameOnly();
 				}
 
 				//step
-				if (gs.worldTimers[WOULD_PAUSE_TIMER] == 0) {
-					
-					BallsStep();
-					UpdateBaseCollision(); //needs to come after the ball step
+				if (0 == gs.worldTimers[WOULD_PAUSE_TIMER]) {
+					BallStep();
+					UpdateBaseCollision(); //needs to come after the ball step to fix timing issues
 					PlayerSteps();
 					CheckPlayersScores();
 					ParticlStep();
 
 					RewindRecord();
 					ReplayStartStep();
-
 				}
 
 				//step world timers
@@ -179,27 +174,20 @@ int main(void) {
 				//draw
 				SpriteTimerTick();
 				DrawBackground(gs.mapIndex);
-				//DrawMapDebug();
 				
 				DrawScore();
 				DrawGameClock();
 
 				DrawPlayers();
-				DrawBall(&gs.ball);
+				DrawBall();
 				
 				DrawPartics();
 				DrawEndGameWinningText();
 
-				//test debug
-				if (gs.mapIndex == MAP_BIG_S) {
-					PointLight();
-					DrawMapDebug();
-				}
-
 				break; //end SCREEN_STATE_GAME
 
-			case SCREEN_STATE_REWIND:
-				//this is mostly for debug
+
+			case SCREEN_STATE_REWIND: //this is mostly for debug, it lets you do a step by step playback of gameplay
 				
 				//step
 				RewindStep();
@@ -214,38 +202,43 @@ int main(void) {
 				DrawPlayers();
 				DrawPlayersDebug();
 				
-				DrawBall(&gs.ball);
-				DrawBallDebug(&gs.ball);
+				DrawBall();
+				DrawBallDebug();
 				
 				DrawPartics();
 				
-
 				break; //end SCREEN_STATE_REWIND
 
+
 			case SCREEN_STATE_INSTANT_REPLAY:
+
+				//step
+				ReplayScreenStep();
+
 				//draw
 				DrawBackground(gs.mapIndex);
-				DrawMapDebug();
 				
 				DrawScore();
 				DrawGameClock();
 
 				DrawPlayers();
-				DrawBall(&gs.ball);
+				DrawBall();
 				
 				DrawPartics();
 				DrawEndGameWinningText();
 
-				//load next state in replay
-				ReplayScreenStep();
 				break; //end SCREEN_STATE_INSTANT_REPLAY
 
+
 			case SCREEN_STATE_GAME_PAUSED:
+				
+				//draw
 				SpriteTimerTick();
 				DrawBackground(gs.mapIndex);
 				DrawPlayers();
-				//DrawPartics();
+
 				break;
+
 
 			default:
 				#ifdef NDEBUG
@@ -255,26 +248,32 @@ int main(void) {
 				assert(false);
 				#endif
 			}
-			//end of screen state switch case
+			//--end of screen state switch case--
 		
-			//draw fps counter
+
+			//--last draw items--
 			if (drawFpsCounter) {
 				DrawTextNumberAppend(FPSDISP_X, FPSDISP_Y, false, FPS_TEXT" ", FPScounterMs());
 			}
-
-			//screen log draw
+			//draw text log
 			LogTextScreenTickTimers();
 			LogTextScreenDraw();
+			//--end last draw items--
 
-		}//end of game logic
+			//test debug wreck angle
+			//UpdatePad();
+			//PlayerDataStep(0);
+			//PlayerDataStep(1);
 
-		//drawing
+		}//--end of game logic--
+
+		//renders all the draw calls to screen
 		DrawRenderToScreen();
 
 	} while (!quitGame);
 	//end of main game loop
 
-	//exit
+	//exit / denit
 	CloseJoypads();
 	CloseSound();
 	ShutdownWindow();

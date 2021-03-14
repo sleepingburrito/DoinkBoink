@@ -1,17 +1,12 @@
-#pragma once
-#include "Tools.h"
-#include <stdint.h>
-#include <stdbool.h>
-#include "GlobalState.h"
-#include "Const.h"
-#include "typedefs.h"
+#ifndef MAP_H
+#define MAP_H
 
 
 //init and load map before players or ball (map holds spawn locations)
 void InitMap(void) {
-	//use to reset all map settings
 	gs.mapBoxCount = 0;
 	ZeroOut((uint8_t*)&gs.map, sizeof(gs.map));
+	ZeroOut((uint8_t*)&gs.startSpawnMap, sizeof(gs.startSpawnMap));
 }
 
 bool MapTestInWall(const boxWorldSpace * const checkMe){
@@ -81,40 +76,33 @@ void LoadMapBlock(const uint16_t x, const uint16_t y, const uint16_t width, cons
 	gs.map[gs.mapBoxCount++] = tmpBox;
 }
 
-void DrawMapDebug(void) {
-	SDL_SetRenderDrawColor(mainRenderer, 0xFF, 0, 0, 0xFF);
-	for (uint8_t i = 0; i < gs.mapBoxCount; ++i) {
-		//draw 2 pixel wide rec
-		SDL_Rect rec = BoxToRec(&gs.map[i]);
-		SDL_RenderDrawRect(mainRenderer, &rec);//rec1
-		rec.x++;
-		rec.y++;
-		rec.h -= 2;
-		rec.w -= 2;
-		SDL_RenderDrawRect(mainRenderer, &rec);//rec2
-	}
-}
-
 void LoadMapArray(const uint16_t * const mapIn, uint16_t count) {
+	//used by LoadMap
+
+	//remove old map
+	InitMap();
+
 	//get spawn locaions
 	for (uint8_t i = 0; i < MAP_SPAWN_COUNT; ++i) {
 		gs.startSpawnMap[i] = mapIn[i];
 	}
+
 	//get count
 	count = (count - MAP_SPAWN_COUNT) / 4;
-	//remove old map
-	InitMap();
+
 	//x, y, h, w
 	for (gs.mapBoxCount = 0; gs.mapBoxCount < count;) {
-		LoadMapBlock(mapIn[gs.mapBoxCount * 4 + MAP_SPAWN_COUNT],
+		LoadMapBlock(
+			mapIn[gs.mapBoxCount * 4 + MAP_SPAWN_COUNT],
 			mapIn[gs.mapBoxCount * 4 + 1 + MAP_SPAWN_COUNT],
 			mapIn[gs.mapBoxCount * 4 + 2 + MAP_SPAWN_COUNT],
-			mapIn[gs.mapBoxCount * 4 + 3 + MAP_SPAWN_COUNT]);
+			mapIn[gs.mapBoxCount * 4 + 3 + MAP_SPAWN_COUNT]
+		);
 	}
 }
 
 void LoadMap(const uint8_t mapId) {
-	//error checking
+
 	if (mapId >= MAP_COUNT) {
 #ifdef NDEBUG
 		return;
@@ -169,3 +157,5 @@ void SwitchMap(const uint8_t mapIndex) {
 
 	newMapIndex = mapIndex;
 }
+
+#endif
