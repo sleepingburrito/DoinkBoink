@@ -91,6 +91,11 @@
 #define POINT_LIGHT_A 20
 #define POINT_LIGHT_FLICKER_OFFSET 100
 
+//reflections
+#define REFLECTION_LINE 475
+#define REFLECTION_MUTIPLYER ((float)0.5)
+#define REFLECTION_ALPHA 50
+
 
 //sound
 #define START_SOUND_EFFECTS_VOLUME INT8_MAX
@@ -811,9 +816,9 @@ const uint16_t mapBigS[] = {
 #define TEXT_AI_HARD "HARD AI FOR PLAYER "
 #define TEXT_AI_FETCH "FETCH AI FOR PLAYER "
 
-#define MAP_NAME_DEBUG "MAP DEBUG"
-#define MAP_NAME_EMPTY "MAP EMPTY"
-#define MAP_NAME_LINE "MAP CROSSING THE LINE"
+#define MAP_NAME_DEBUG "DE_BUG BONSAI"
+#define MAP_NAME_EMPTY "BUG BOX"
+#define MAP_NAME_LINE "MOTH TO THE FLAME"
 
 //text log screen
 #define TEXT_LOG_CHARS 255 //max chars in message

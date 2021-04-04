@@ -35,6 +35,8 @@ void PrepRendering(void) {
 		assert(false);
 	}
 
+	//mark reflection drawing done at end of frame
+	drawReflection = false;
 }
 
 void ClearScreenSoildColor(void) {
@@ -180,6 +182,11 @@ void DrawTextNumberAppend(const uint16_t x, const uint16_t y, const bool big, co
 
 
 //x and y should be fixed point
+void DrawSpriteReflection(const float reflectionYaxis) {
+	reflectionLine = reflectionYaxis;
+	drawReflection = true;
+}
+
 void DrawSprite(
 	const uint16_t x, 
 	const uint16_t y, 
@@ -260,9 +267,32 @@ void DrawSprite(
 
 	SDL_RenderCopyEx(mainRenderer, spriteTex, &SrcR, &DestR, 0, NULL, (SDL_RendererFlip)flipFlag);
 
+	//draw reflections
+	if (drawReflection) {
+
+		//sprite flip
+		flipFlag = 0;
+		if (flipH) {
+			flipFlag = SDL_FLIP_HORIZONTAL;
+		}
+		if (!flipV) {
+			flipFlag |= SDL_FLIP_VERTICAL;
+		}
+
+		//find new x and y
+		float yR = (reflectionLine - ((float)REMOVE_FIXPOINT(y) + SPRITE_HEIGHT)) * REFLECTION_MUTIPLYER + reflectionLine;
+		DestR.y = (int)yR;
+
+		if (DestR.y < BASE_RES_HEIGHT) {
+			//draw
+			SDL_SetTextureAlphaMod(spriteTex, REFLECTION_ALPHA);
+			SDL_RenderCopyEx(mainRenderer, spriteTex, &SrcR, &DestR, 0, NULL, (SDL_RendererFlip)flipFlag);
+			SDL_SetTextureAlphaMod(spriteTex, UINT8_MAX);
+		}
+	}
+
 	//undo sprite color settings
 	SDL_SetTextureColorMod(spriteTex, 0xFF, 0xFF, 0xFF);
-
 }
 
 //ending draw call to put the graphics on screen
@@ -527,13 +557,23 @@ void DrawPointLight(void) {
 	//get shadow casting box zones
 	const float box0left = (float)REMOVE_FIXPOINT(gs.players[PLAYER_ONE].playerPhysics.postionWorldSpace.topLeft.x);
 	const float box0right = (float)REMOVE_FIXPOINT(gs.players[PLAYER_ONE].playerPhysics.postionWorldSpace.bottomRight.x);
-	const float box0top = (float)REMOVE_FIXPOINT(gs.players[PLAYER_ONE].playerPhysics.postionWorldSpace.topLeft.y);
-	const float box0bottom = (float)REMOVE_FIXPOINT(gs.players[PLAYER_ONE].playerPhysics.postionWorldSpace.bottomRight.y);
+	float box0top = (float)REMOVE_FIXPOINT(gs.players[PLAYER_ONE].playerPhysics.postionWorldSpace.topLeft.y);
+	float box0bottom = (float)REMOVE_FIXPOINT(gs.players[PLAYER_ONE].playerPhysics.postionWorldSpace.bottomRight.y);
+
+	if (FLAG_TEST(gs.players[PLAYER_ONE].playerFlags, PLAYER_DUCKING)) {
+		box0top += SPRITE_HEIGHT;
+		box0bottom = box0top + SPRITE_WIDTH_HALF;
+	}
 
 	const float box1left = (float)REMOVE_FIXPOINT(gs.players[PLAYER_TWO].playerPhysics.postionWorldSpace.topLeft.x);
 	const float box1right = (float)REMOVE_FIXPOINT(gs.players[PLAYER_TWO].playerPhysics.postionWorldSpace.bottomRight.x);
-	const float box1top = (float)REMOVE_FIXPOINT(gs.players[PLAYER_TWO].playerPhysics.postionWorldSpace.topLeft.y);
-	const float box1bottom = (float)REMOVE_FIXPOINT(gs.players[PLAYER_TWO].playerPhysics.postionWorldSpace.bottomRight.y);
+	float box1top = (float)REMOVE_FIXPOINT(gs.players[PLAYER_TWO].playerPhysics.postionWorldSpace.topLeft.y);
+	float box1bottom = (float)REMOVE_FIXPOINT(gs.players[PLAYER_TWO].playerPhysics.postionWorldSpace.bottomRight.y);
+
+	if (FLAG_TEST(gs.players[PLAYER_TWO].playerFlags, PLAYER_DUCKING)) {
+		box1top += SPRITE_HEIGHT;
+		box1bottom = box1top + SPRITE_WIDTH_HALF;
+	}
 
 	const float box2left = (float)REMOVE_FIXPOINT(gs.ball.ballPhysics.postionWorldSpace.topLeft.x);
 	const float box2right = (float)REMOVE_FIXPOINT(gs.ball.ballPhysics.postionWorldSpace.bottomRight.x);
@@ -646,9 +686,13 @@ void DrawBackground(const uint8_t mapIndex) {
 
 	//draw map specific graphics
 	switch (gs.mapIndex) {
+	case MAP_EMPY:
+		DrawSpriteReflection(REFLECTION_LINE);
+		break;
+
 	case MAP_BIG_S:
 		DrawPointLight();
-		DrawMapDebug();
+		//DrawMapDebug();
 		break;
 	}
 
@@ -740,6 +784,8 @@ void InitWindow(void) {
 	ZeroOut((uint8_t*)textLogBuffer, sizeof(textLogBuffer));
 	LoadSprites();
 	gs.spriteTimer = 0;
+	reflectionLine = 0;
+	drawReflection = false;
 }
 
 #endif

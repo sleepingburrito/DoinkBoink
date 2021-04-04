@@ -64,6 +64,9 @@ uint16_t displayRefreshRate = 0; //read only, set when graphics are init
 SDL_Rect lightBoxs[POINT_LIGHT_MAX_BOXES]; //used by point light for batch processing
 
 textLogBase textLogBuffer[TEXT_LOG_LINES]; //used by the text log
+
+float reflectionLine = 0; //these two are set with DrawSpriteReflection
+bool drawReflection = false;
 //
 //end of Graphics.h
 
