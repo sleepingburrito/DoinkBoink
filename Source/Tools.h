@@ -55,6 +55,14 @@ void ByteCopy(const uint8_t* const from, uint8_t* const to, const size_t byteCou
 		to[i] = from[i];
 	}
 }
+
+uint8_t CheckSum(uint8_t* const checkSumMe, const size_t byteCount) {
+	uint8_t sum = 0;
+	for (size_t i = 0; i < byteCount; ++i) {
+		sum += checkSumMe[i];
+	}
+	return sum;
+}
 //
 //end of mem
 

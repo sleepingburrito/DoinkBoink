@@ -3,7 +3,7 @@
 
 //game Info
 #define GAME_NAME "DoinkBoink"
-#define GAME_VS "0.41"
+#define GAME_VS "0.42"
 
 //directory separators
 #ifdef _WIN32
@@ -79,9 +79,18 @@
 #define POINT_LIGHT_Y_BOXSPACE (POINT_LIGHT_Y / POINTLIGHT_BOX_HEIGTH)
 #define POINTLIGHT_DIST_MAX_BOXSPACE (POINT_LIGHT_MAX_DIST / POINTLIGHT_BOX_WIDTH)
 
+//decorative start screen text settings
+#define INTRO_TEXT_BOUNCE_RATE (0.3f)
+#define INTRO_TEXT_BOUNCE_AMOUNT (0.2f)
+#define INTRO_TEXT_BOUNCE_AMT (0.1f)
+#define INTRO_TEXT_CHAR_OFFSET 5
+
+//FadeInSolid settings
+#define FADE_IN_RATE 6
+
 //light map bounds
-#define POINTLIGHT_TOP_MAX (SPRITE_HEIGHT_HALF / POINTLIGHT_BOX_HEIGTH) 
-#define POINTLIGHT_BOTTOM_MAX ((BASE_RES_HEIGHT - SPRITE_HEIGHT_HALF) / POINTLIGHT_BOX_HEIGTH)
+#define POINTLIGHT_TOP_MAX 0 //(SPRITE_HEIGHT_HALF / POINTLIGHT_BOX_HEIGTH) 
+#define POINTLIGHT_BOTTOM_MAX BASE_RES_HEIGHT //((BASE_RES_HEIGHT - SPRITE_HEIGHT_HALF) / POINTLIGHT_BOX_HEIGTH)
 #define POINTLIGHT_LEFT_MAX (SPRITE_WIDTH_HALF / POINTLIGHT_BOX_WIDTH)
 #define POINTLIGHT_RIGHT_MAX ((BASE_RES_WIDTH - SPRITE_WIDTH_HALF) / POINTLIGHT_BOX_WIDTH)
 
@@ -197,6 +206,7 @@ enum MUSIC_ENUM {
 #define TARGET_FRAME_RATE 60 //in FPS
 #define MS_TILL_UPDATE (1000 / TARGET_FRAME_RATE - 1) //game logic update rate, this rate will be used (if vsynce is slower that will be used). -1 to round down for headroom
 #define MS_TIME_SHIFT_MASK 1 //(1 or 3) used for setting the max slowdown when adjusting game speed
+#define FRAME_SKIP 6 //game logic will not update on this frame
 
 #define WATCHDOD_MASK 511 //controls the rate the watchdog send an update (in frames)
 #define WATCHDOG_MSG "WATCHDOG PING"
@@ -335,7 +345,7 @@ enum physicsMasks {
 #define PLAYER2_DEBUG_SCORE_Y 10
 
 #define PLAYER1_DRAW_SCORE_X 1
-#define PLAYER1_DRAW_SCORE_Y 5
+#define PLAYER1_DRAW_SCORE_Y 20
 #define PLAYER2_DRAW_SCORE_X (BASE_RES_WIDTH - SPRITE_WIDTH * 3)
 #define PLAYER2_DRAW_SCORE_Y PLAYER1_DRAW_SCORE_Y
 
@@ -385,6 +395,7 @@ enum playerTimersIndex {
 	//AI
 	PLAYER_AI_NEW_WALK_LOC,
 	PLAYER_AI_ATTACK_TIMER,
+	PLAYER_AI_INMISS_TIMER, //mistake recovery: if you miss you cant try and catch again till this is over
 
 	PLAYER_TIMER_COUNT
 };
@@ -399,14 +410,16 @@ enum playerAiMasks {
 
 #define AI_MAP_DEBUG_PLATX_LEFT (TO_FIXPOINT(220)) //helps the AI get around the platform on MAP_DEBUG
 #define AI_MAP_DEBUG_PLATX_RIGHT (TO_FIXPOINT(220 + 490))
-#define AI_MAP_DEBUG_PLATY 2000
+#define AI_MAP_DEBUG_PLATY 1400 //old was 2000
 
 #define AI_DISTANCE_RUN 500 //stops running when this close to goal
 
 //miss a catch (smaller number more missing)
 #define AI_MISS_RATE_EASY 50
 #define AI_MISS_RATE_MEDIUM 128 
-#define AI_MISS_RATE_HARD 150
+#define AI_MISS_RATE_HARD 200
+
+#define AI_MISS_TIMER_MASK RNG_MASK_31 //max rng mask value for how long they can mess up for
 
 //timer throw rate (bigger mask longer times between throws)
 #define AI_THROW_TIMER_MASK_MEDIUM 127
@@ -613,7 +626,6 @@ enum padStatesIndex{
 
 //game screen state
 enum screenStateIndex {
-	SCREEN_STATE_MAIN_MENU,
 	SCREEN_STATE_GAME,
 	SCREEN_STATE_REWIND,
 	SCREEN_STATE_INSTANT_REPLAY,
@@ -793,7 +805,11 @@ const uint16_t mapBigS[] = {
 
 #define FPSDISP_X 150
 #define FPSDISP_Y 5
-#define FPS_TEXT "FPS"
+#define FPS_TEXT "LOGIC"
+
+#define PAUSE_DISP_X 100
+#define PAUSE_DISP_Y 300
+#define PAUSE_TEXT "PAUSED"
 
 #define END_TEXT_TIE "TIE"
 #define END_TEXT_WIN "WIN TO PLAYER "
@@ -816,15 +832,20 @@ const uint16_t mapBigS[] = {
 #define TEXT_AI_HARD "HARD AI FOR PLAYER "
 #define TEXT_AI_FETCH "FETCH AI FOR PLAYER "
 
-#define MAP_NAME_DEBUG "DE_BUG BONSAI"
-#define MAP_NAME_EMPTY "BUG BOX"
-#define MAP_NAME_LINE "MOTH TO THE FLAME"
+#define MAP_NAME_DEBUG "BONSAI BUGS"
+#define MAP_NAME_EMPTY "BUGS BOX"
+#define MAP_NAME_LINE "DE BUGS"
+
+#define GAME_NAME_STARTSCREEN "DOINK BOINK"
+#define GAME_NAME_X 70
+#define GAME_NAME_Y 350//200
+
 
 //text log screen
 #define TEXT_LOG_CHARS 255 //max chars in message
 #define TEXT_LOG_LINES 5 //max lines on screen
 #define TEXT_LOG_TIME 70 //frames on screen
-#define TEXT_LOG_X 300
+#define TEXT_LOG_X 340
 #define TEXT_LOG_Y 50
 #define TEXT_LOG_Y_BUFFER 4
 #define TEXT_LOG_BLINK (0.2) //if the timer less than this % the text will blink

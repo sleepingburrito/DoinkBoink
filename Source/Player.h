@@ -830,6 +830,8 @@ void PlayerMoveToAI(const playerBase* const player, uint16_t goalX, uint16_t goa
 	int32_t goalDist = DistancePart(playerCenterX, playerCenterY, goalX, goalY);
 
 
+
+
 	//running
 	if (goalDist > TO_FIXPOINT(POW2(AI_DISTANCE_RUN))) {
 		FLAG_SET(*keysHeld, PAD_RUN);
@@ -855,9 +857,11 @@ void PlayerMoveToAI(const playerBase* const player, uint16_t goalX, uint16_t goa
 			}
 		}
 	}
+
 	//dont get stuck under the plat on big S
 	if (gs.mapIndex == MAP_BIG_S) {
-		int16_t distX = (int16_t)playerCenterX - (int16_t)TO_FIXPOINT(BASE_RES_WIDTH_HALF);
+
+		int16_t distX = (int16_t)playerCenterX - (int16_t)TO_FIXPOINT(BASE_RES_WIDTH_HALF - SPRITE_WIDTH_HALF);
 		if (distX < 0) distX = -distX;
 
 		//if the ball is on top hold a dir to avoid the plat
@@ -866,21 +870,30 @@ void PlayerMoveToAI(const playerBase* const player, uint16_t goalX, uint16_t goa
 		}
 	}
 
+
+	//goals are normally in the middle of a sprite so i'm adding a sprite buffer to keep the players from flailing around
+	const uint16_t goalLeft = goalX - SPRITE_WIDTH;
+	const uint16_t goalRight = goalX + SPRITE_WIDTH;
+	const uint16_t goalUp = goalY - SPRITE_HEIGHT;
+	const uint16_t goalDown = goalY + SPRITE_HEIGHT;
+
 	//move left / right when on ground
 	if (playerCenterX != goalX) {
-		if (playerCenterX < goalX) {
+
+		if (playerCenterX < goalLeft) {
 			FLAG_SET(*keysHeld, PAD_RIGHT);
 		}
-		else {
+		else if (playerCenterX > goalRight){
 			FLAG_SET(*keysHeld, PAD_LEFT);
 		}
+
 		//climb up if stuck on wall climb
 		if (FLAG_TEST(playerPhysicsFlags, PHYSICS_IN_HORIZONTAL_WALL)) {
 
-			if (goalY < playerCenterY) {//climb tords goal
+			if (goalUp < playerCenterY) {//climb tords goal
 				FLAG_SET(*keysHeld, PAD_UP);
 			}
-			else {
+			else if (goalDown > playerCenterY){
 				FLAG_SET(*keysHeld, PAD_DOWN);
 			}
 
@@ -916,6 +929,7 @@ void PlayerMoveToAI(const playerBase* const player, uint16_t goalX, uint16_t goa
 		else {
 			FLAG_SET(*keysHeld, PAD_LEFT);
 		}
+
 		//jump onto wall
 		if (!FLAG_TEST(playerPhysicsFlags, PHYSICS_IN_HORIZONTAL_WALL)) {
 			//hop onto wall
@@ -923,10 +937,10 @@ void PlayerMoveToAI(const playerBase* const player, uint16_t goalX, uint16_t goa
 		}
 		else {
 			//move up or down to it
-			if (playerCenterY < goalY) {
+			if (playerCenterY < goalDown) {
 				FLAG_SET(*keysHeld, PAD_DOWN);
 			}
-			else {
+			else if (playerCenterY > goalUp){
 				FLAG_SET(*keysHeld, PAD_UP);
 			}
 		}
@@ -974,6 +988,12 @@ void PlayerAI(playerBase* const player) {
 	flags*					keysTap					= &gs.padIOReadOnly[PADIO_INDEX(PAD_STATE_TAP, myPlayerIndex)];
 
 
+	// AI auto plays on main screen
+	//if (SCREEN_STATE_MAIN_MENU == screen) {
+	//	gs.settingsAi[PLAYER_ONE] = AI_SET_MEDIUM;
+	//	gs.settingsAi[PLAYER_TWO] = AI_SET_MEDIUM;
+	//}
+
 	//set AI settings depending on gloable settings
 	uint8_t missRate = 0;
 	uint8_t randomKeyRate = 0;
@@ -981,7 +1001,7 @@ void PlayerAI(playerBase* const player) {
 	if (AI_SET_EASY == gs.settingsAi[myPlayerIndex]) {
 		FLAG_SET(player->AI, AI_ENABLED);
 		FLAG_ZERO(player->AI, AI_FETCH);
-		missRate = AI_MISS_RATE_MEDIUM;
+		missRate = AI_MISS_RATE_EASY;
 		randomKeyRate = AI_RNG_KEY_EASY;
 	}
 	else if (AI_SET_HARD == gs.settingsAi[myPlayerIndex]) {
@@ -1009,7 +1029,7 @@ void PlayerAI(playerBase* const player) {
 	//main ai start
 	if (!FLAG_TEST(player->AI, AI_ENABLED)) return;
 
-	//fetch (needs to come first since it has a early return)
+	//fetch (needs to come first since it has an early return)
 	if (FLAG_TEST(player->AI, AI_FETCH)
 		&& (FLAG_TEST(ballFlags, BALL_TOO_FAST) 
 		|| CheckPlayersBall(otherPlayerFlags) != NULL
@@ -1023,7 +1043,10 @@ void PlayerAI(playerBase* const player) {
 		&& FLAG_TEST(ballFlags, BALL_ON_PLAYER2) != myPlayerIndex
 		&& Rng8() < AI_DODGE_RATE
 		&& distBall < TO_FIXPOINT(POW2(AI_DISTANCE_DODGE))
-		&& !FLAG_TEST(player->AI, AI_FETCH)) {
+		&& !FLAG_TEST(player->AI, AI_FETCH)
+		&& playerTimers[PLAYER_AI_INMISS_TIMER] < 1
+		) {
+
 		FLAG_SET(*keysTap, PAD_DODGE);
 	}
 
@@ -1045,8 +1068,14 @@ void PlayerAI(playerBase* const player) {
 		const bool onBall = (otherPlayerHasBall && HitOtherPlayer != NULL) || (!otherPlayerHasBall && ballInPlayer != NULL);
 		
 		//grab for ball if able to
-		if (onBall && (Rng8() < missRate || FLAG_TEST(player->AI, AI_FETCH))) {
-			FLAG_SET(*keysTap, PAD_ACTION);
+		if ((onBall || FLAG_TEST(player->AI, AI_FETCH)) && playerTimers[PLAYER_AI_INMISS_TIMER] < 1) {
+
+			if (Rng8() < missRate) {
+				FLAG_SET(*keysTap, PAD_ACTION);
+			}
+			else if (FLAG_TEST(ballFlags, BALL_TOO_FAST)){ //Make mistake punishment less when the ball is moving slower
+				playerTimers[PLAYER_AI_INMISS_TIMER] = RngMasked8(RNG_MASK_127);
+			}
 		}
 
 		PlayerMoveToAI(player, goalX, goalY, otherPlayerHasBall);
@@ -1437,9 +1466,6 @@ void DrawPlayer(const playerBase* const player) {
 		DrawSprite(ballX, ballY, ballIndex, true, false, false, ballBlink, FLAG_TEST(player->playerFlags, PLAYER_SECOND));
 	}
 
-	//player shadow
-	DrawBoxShadow(&player->playerPhysics.postionWorldSpace);
-
 	//draw player
 	DrawSprite(playerX - xOffset,
 		playerY + yOffset,
@@ -1509,18 +1535,19 @@ void CheckPlayersScores(void) {
 		) 
 	{
 		//debug print players scores (helps with AI map testing)
-		//static int p1Score = 0;
-		//static int p2Score = 0;
-		//if (gs.players[PLAYER_ONE].deathCount < gs.players[PLAYER_TWO].deathCount) {
-		//	printf("P1 WON, SCORE OTHER PLAYER: %d ", gs.players[PLAYER_ONE].deathCount);
-		//	p1Score++;
-		//}
-		//else {
-		//	printf("P2 WON, SCORE OTHER PLAYER: %d ", gs.players[PLAYER_TWO].deathCount);
-		//	p2Score++;
-		//}
-		//printf(" Score Total P1: %d P2: %d \n", p1Score, p2Score);
+		static int p1Score = 0;
+		static int p2Score = 0;
+		if (gs.players[PLAYER_ONE].deathCount < gs.players[PLAYER_TWO].deathCount) {
+			printf("P1 WON, SCORE OTHER PLAYER: %d ", gs.players[PLAYER_ONE].deathCount);
+			p1Score++;
+		}
+		else {
+			printf("P2 WON, SCORE OTHER PLAYER: %d ", gs.players[PLAYER_TWO].deathCount);
+			p2Score++;
+		}
+		printf(" Score Total P1: %d P2: %d \n", p1Score, p2Score);
 
+		//end and sound
 		PlaySoundEffect(SOUND_EFFECT_AIRHORN);
 		replayStartTimer = REPLAY_START_IN;
 	}

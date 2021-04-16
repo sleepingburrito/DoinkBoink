@@ -125,7 +125,7 @@ void ReplayScreenStep(void) {
 	gs = dispStateBuffer;
 
 	//restart the game at replay end
-	if (tapeFrame == tapeFrameLast || FLAG_TEST(keys, PAD_ACTION)) {
+	if (tapeFrame == tapeFrameLast || FLAG_TEST(keys, PAD_ACTION) || showStartScreen) {
 		screen = SCREEN_STATE_GAME;
 
 		//auto map switch

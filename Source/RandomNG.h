@@ -16,7 +16,9 @@ uint8_t Rng8(void) {
 		+ BRAKES_FRICTION[gs.spriteTimer]
 		+ AIR_FRICTION[gs.rngSeed]
 		+ GROUND_FRICTION[gs.spriteTimer]
-		+ gs.mapIndex;
+		+ gs.mapIndex
+		+ gs.padIOReadOnly[PLAYER_ONE]
+		+ gs.padIOReadOnly[PLAYER_TWO];
 }
 
 uint8_t RngMasked8(const uint8_t maskOffset) {

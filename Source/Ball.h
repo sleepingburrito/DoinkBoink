@@ -383,7 +383,7 @@ void DrawBall(void) {
 		}
 	}
 
-	DrawBoxShadow(&gs.ball.ballPhysics.postionWorldSpace);
+	
 	DrawSprite(ballX - xOffset, ballY - yOffset, index, true, inverth, invertv, blink, player2Col);
 }
 

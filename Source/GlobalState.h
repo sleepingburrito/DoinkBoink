@@ -6,20 +6,28 @@
 //main.h
 //
 bool quitGame = false;
+
 //game logic timing tools
 uint8_t updateLogicRateTimeShifter = 0; //bit shift the game logic time to slow game down, pad.h handles this
 bool drawFpsCounter = true; //safe set, this if you wish to have a fps counter on screen
 Uint64 lastLogicUpdate = 0; //timer to limit game logic update rate
 bool updateGameLogic = false; //used by timing tools in main to know when to update game logic, do not touch
 uint32_t WatchDogFrameCount = 0; //handled by a watch dog
+uint8_t frameSkip = 0; //skip every x frame (used to slow game play
+
 //settings
 bool disableGameTimer = true; //set these to disable these features
 bool disableGameScore = false; //set to disable game score
+
 //menu state
 gameScreenState screen; //id of what screen we should be on
 gameScreenState screenStateSavePause; //where the screen was before it paused
+
+bool showStartScreen = true;
+
 //next map buffer
 uint8_t newMapIndex = MAP_DEBUG;
+
 //
 //end of main.h
 
@@ -67,6 +75,7 @@ textLogBase textLogBuffer[TEXT_LOG_LINES]; //used by the text log
 
 float reflectionLine = 0; //these two are set with DrawSpriteReflection
 bool drawReflection = false;
+
 //
 //end of Graphics.h
 

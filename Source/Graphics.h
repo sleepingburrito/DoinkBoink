@@ -52,133 +52,23 @@ void ClearScreenSoildColor(void) {
 	}
 }
 
+void FadeInSolid(bool resetFade) {
 
-//--Text tools--
+	static uint8_t fade = 0;
 
-//Note: x/y are not fixpoint
-void DrawText(uint16_t x, uint16_t y, const bool big, const char* text) {
-
-	if (NULL == text) {
-#ifdef NDEBUG
+	if (resetFade) {
+		fade = 0;
+	}
+	else if (UINT8_MAX == fade) {
 		return;
-#else
-		printf("null text DrawText \n");
-		assert(false);
-#endif
 	}
 
-	const uint16_t xStart = x;
-	const uint16_t hight = big ? SPRITE_HEIGHT : SPRITE_TEXTSMALL_HEIGHT;
-	const uint16_t width = big ? SPRITE_WIDTH : SPRITE_TEXTSMALL_WIDTH;
+	AddUint8Capped(&fade, FADE_IN_RATE);
 
-	SDL_Rect SrcR;
-	SrcR.h = hight;
-	SrcR.w = width;
+	SDL_SetRenderDrawColor(mainRenderer, 0, 0, 0, UINT8_MAX - fade);
 
-	SDL_Rect DestR;
-	DestR.h = hight;
-	DestR.w = width;
-
-	do {
-		if (*text == '\n') { //new line
-			y += hight;
-			x = xStart;
-			continue;
-		}
-		else if (*text >= ' ' && *text <= 'Z') { //drawing chars as sprites if in range
-
-			//move to next char spot
-			x += width;
-
-			//space
-			if (*text == ' ') continue;
-
-			//draw char
-			const int tempWidth = (*text - ' ') * width;
-			SrcR.x = tempWidth % TEXTURE_WIDTH;
-			SrcR.y = SPRITE_HEIGHT * (tempWidth / TEXTURE_WIDTH);
-
-			DestR.x = x;
-			DestR.y = y;
-
-			SDL_RenderCopyEx(mainRenderer, big ? spriteTextTexBig : spriteTextTexSmall, &SrcR, &DestR, 0, NULL, SDL_FLIP_NONE);
-		}
-	} while (*(text++));
+	SDL_RenderFillRect(mainRenderer, NULL);
 }
-
-//Note: not fixed point
-void DrawTextNumberAppend(const uint16_t x, const uint16_t y, const bool big, const char* text, int32_t number) {
-	
-	if (text == NULL) {
-#ifdef NDEBUG
-		return;
-#else
-		printf("null text DrawTextNumberAppend \n");
-		assert(false);
-#endif
-	}
-	
-	//draw starting text
-	DrawText(x, y, big, text);
-	
-	//find ending x/y of text (where number will be drawn)
-	const uint16_t width = big ? SPRITE_WIDTH : SPRITE_TEXTSMALL_WIDTH;
-	const uint16_t hight = big ? SPRITE_HEIGHT : SPRITE_TEXTSMALL_HEIGHT;
-	uint16_t xOffset = x;
-	uint16_t yOffset = y;
-	uint16_t i = 0;
-
-	while (text[i]) {
-		if (text[i] == '\n') {
-			xOffset = x;
-			yOffset += hight;
-		}
-		else if (text[i] >= ' ' && text[i] <= 'Z') {
-			xOffset += width;
-		}
-		++i;
-	}
-
-	//draw a negative 
-	if (number < 0) {
-		number *= -1;
-		DrawText(x, y, big, "-");
-		xOffset += width;
-	}
-
-	//draw number
-	if (0 == number) {
-		DrawText(xOffset, yOffset, big, "0");
-	}else {
-		int32_t flippedNumber = 0;
-		uint8_t places = 0; //used to know the number of 10s places when drawing
-
-		//flip number around for drawing
-		while (true) {
-			flippedNumber += number % 10;
-			number /= 10;
-			++places;
-			if (number > 0) {
-				flippedNumber *= 10;
-				continue;
-			}
-			break;
-		}
-
-		//draw numbers
-		while (places--) {
-			char num[2];
-			num[1] = 0;
-			num[0] = '0' + (flippedNumber % 10);
-			DrawText(xOffset, yOffset, big, num);
-			xOffset += width;
-			flippedNumber /= 10;
-		}
-	}
-
-}
-
-//--end of text tools--
 
 
 //x and y should be fixed point
@@ -317,16 +207,6 @@ void DrawRenderToScreen(void) {
 	SDL_RenderPresent(mainRenderer);
 }
 
-//used to draw diagnostic text
-void DrawTextStandAlone(const uint16_t x, const uint16_t y, const char* text) {
-	//only call once you have loaded the small font
-	//used to draw text to the screen doing the full render cycle
-	//useful for showing text during loading or debugging
-	PrepRendering();
-	ClearScreenSoildColor();
-	DrawText(x, y, false, text);
-	DrawRenderToScreen();
-}
 
 //effects
 void DrawBoxShadow(const boxWorldSpace* const boxIn) {
@@ -367,6 +247,176 @@ void DrawBoxShadow(const boxWorldSpace* const boxIn) {
 
 	SDL_SetTextureAlphaMod(spriteTex, UINT8_MAX);
 }
+
+
+//--Text tools--
+//
+//Note: x/y are not fixpoint
+void DrawText(uint16_t x, uint16_t y, const bool big, const char* text) {
+
+	if (NULL == text) {
+#ifdef NDEBUG
+		return;
+#else
+		printf("null text DrawText \n");
+		assert(false);
+#endif
+	}
+
+	const uint16_t xStart = x;
+	const uint16_t hight = big ? SPRITE_HEIGHT : SPRITE_TEXTSMALL_HEIGHT;
+	const uint16_t width = big ? SPRITE_WIDTH : SPRITE_TEXTSMALL_WIDTH;
+
+	SDL_Rect SrcR;
+	SrcR.h = hight;
+	SrcR.w = width;
+
+	SDL_Rect DestR;
+	DestR.h = hight;
+	DestR.w = width;
+
+	//decorative start screen stuff
+	static float sinIndex = 0;
+	uint8_t sinIndexOffset = 0;
+
+	do {
+		if (*text == '\n') { //new line
+			y += hight;
+			x = xStart;
+			continue;
+		}
+		else if (*text >= ' ' && *text <= 'Z') { //drawing chars as sprites if in range
+
+			//move to next char spot
+			x += width;
+
+			//space
+			if (*text == ' ') continue;
+
+			//draw char
+			const int tempWidth = (*text - ' ') * width;
+			SrcR.x = tempWidth % TEXTURE_WIDTH;
+			SrcR.y = hight * (tempWidth / TEXTURE_WIDTH);
+
+			DestR.x = x;
+			DestR.y = y;
+
+			//if start screen make the text more decorative
+			if (showStartScreen && big) {
+
+				//find y offset
+				uint8_t tmpIndex = (sinIndexOffset += INTRO_TEXT_CHAR_OFFSET); //make each char diffrent
+				sinIndex += INTRO_TEXT_BOUNCE_RATE;
+				if ((uint8_t)sinIndex > UINT8_MAX) { //don't go over max index
+					sinIndex = tmpIndex = 0;
+				}
+				else {
+					tmpIndex += (uint8_t)sinIndex;
+				}
+
+				//make text bounce
+				DestR.y += (int)((float)SIN_TABLE[tmpIndex] * INTRO_TEXT_BOUNCE_AMT);
+
+				//make shadow
+				boxWorldSpace box = InitBox(
+					TO_FIXPOINT((location)DestR.x + SPRITE_WIDTH_HALF), 
+					TO_FIXPOINT((location)DestR.y), 
+					TO_FIXPOINT(SPRITE_HEIGHT), 
+					TO_FIXPOINT(SPRITE_WIDTH)
+				);
+				DrawBoxShadow(&box);
+			}
+
+			SDL_RenderCopyEx(mainRenderer, big ? spriteTextTexBig : spriteTextTexSmall, &SrcR, &DestR, 0, NULL, SDL_FLIP_NONE);
+		}
+	} while (*(text++));
+}
+
+//Note: not fixed point
+void DrawTextNumberAppend(const uint16_t x, const uint16_t y, const bool big, const char* text, int32_t number) {
+
+	if (text == NULL) {
+#ifdef NDEBUG
+		return;
+#else
+		printf("null text DrawTextNumberAppend \n");
+		assert(false);
+#endif
+	}
+
+	//draw starting text
+	DrawText(x, y, big, text);
+
+	//find ending x/y of text (where number will be drawn)
+	const uint16_t width = big ? SPRITE_WIDTH : SPRITE_TEXTSMALL_WIDTH;
+	const uint16_t hight = big ? SPRITE_HEIGHT : SPRITE_TEXTSMALL_HEIGHT;
+	uint16_t xOffset = x;
+	uint16_t yOffset = y;
+	uint16_t i = 0;
+
+	while (text[i]) {
+		if (text[i] == '\n') {
+			xOffset = x;
+			yOffset += hight;
+		}
+		else if (text[i] >= ' ' && text[i] <= 'Z') {
+			xOffset += width;
+		}
+		++i;
+	}
+
+	//draw a negative 
+	if (number < 0) {
+		number *= -1;
+		DrawText(x, y, big, "-");
+		xOffset += width;
+	}
+
+	//draw number
+	if (0 == number) {
+		DrawText(xOffset, yOffset, big, "0");
+	}
+	else {
+		int32_t flippedNumber = 0;
+		uint8_t places = 0; //used to know the number of 10s places when drawing
+
+		//flip number around for drawing
+		while (true) {
+			flippedNumber += number % 10;
+			number /= 10;
+			++places;
+			if (number > 0) {
+				flippedNumber *= 10;
+				continue;
+			}
+			break;
+		}
+
+		//draw numbers
+		while (places--) {
+			char num[2];
+			num[1] = 0;
+			num[0] = '0' + (flippedNumber % 10);
+			DrawText(xOffset, yOffset, big, num);
+			xOffset += width;
+			flippedNumber /= 10;
+		}
+	}
+
+}
+
+//used to draw diagnostic text
+void DrawTextStandAlone(const uint16_t x, const uint16_t y, const char* text) {
+	//only call once you have loaded the small font
+	//used to draw text to the screen doing the full render cycle
+	//useful for showing text during loading or debugging
+	PrepRendering();
+	ClearScreenSoildColor();
+	DrawText(x, y, false, text);
+	DrawRenderToScreen();
+}
+//
+//--end of text tools--
 
 
 //--log text--
@@ -599,7 +649,7 @@ void DrawPointLight(void) {
 			const float sinSave = (float)sin(angle);
 			const float dist = (float)sqrt(doubleX + POW2(subY));
 
-			//if outside of light cicle
+			//if outside of light circle
 			if (dist > POINTLIGHT_DIST_MAX_BOXSPACE) {
 				if (y > POINTLIGHT_BOTTOM_MAX / 2) {
 					//if your outside your circle move onto the next row
@@ -686,7 +736,20 @@ void DrawBackground(const uint8_t mapIndex) {
 
 	//draw map specific graphics
 	switch (gs.mapIndex) {
+	case MAP_DEBUG:
+		//shadows
+		DrawBoxShadow(&gs.ball.ballPhysics.postionWorldSpace);
+		DrawBoxShadow(&gs.players[PLAYER_ONE].playerPhysics.postionWorldSpace);
+		DrawBoxShadow(&gs.players[PLAYER_TWO].playerPhysics.postionWorldSpace);
+		break;
+
 	case MAP_EMPY:
+		//shadows
+		DrawBoxShadow(&gs.ball.ballPhysics.postionWorldSpace);
+		DrawBoxShadow(&gs.players[PLAYER_ONE].playerPhysics.postionWorldSpace);
+		DrawBoxShadow(&gs.players[PLAYER_TWO].playerPhysics.postionWorldSpace);
+
+		//reflection
 		DrawSpriteReflection(REFLECTION_LINE);
 		break;
 

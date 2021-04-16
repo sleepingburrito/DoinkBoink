@@ -83,7 +83,45 @@ void LimitGameSpeed(void) {
 		&& false == fallbackGameLogicLimit) {
 		updateGameLogic = true;
 	}
+
+	if (FRAME_SKIP != 0 && (frameSkip++) >= FRAME_SKIP) {
+		updateGameLogic = false;
+		frameSkip = 0;
+	}
 }
+
+//start screen
+void ShowStartScreen(void) {
+	showStartScreen = true;
+}
+
+void StopStartScreen(void) { //based off key press
+	const uint8_t keys = padIO[PLAYER_ONE] | padIO[PLAYER_TWO];
+	if (FLAG_TEST(keys, PAD_ACTION)) {
+		gs.settingsAi[PLAYER_TWO] = gs.settingsAi[PLAYER_ONE] = AI_SET_OFF;
+		InitGameOnly();
+		showStartScreen = false;
+		SetMuteSoundEffects(false);
+	}
+}
+
+void StartScreenStep(void) {
+	if (!showStartScreen) return;
+
+	gs.settingsAi[PLAYER_TWO] = gs.settingsAi[PLAYER_ONE] = AI_SET_MEDIUM;
+	SetAutoMapSwitch(true);
+	StopStartScreen();
+
+}
+
+void DrawStartScreen(void) {
+	if (!showStartScreen) return;
+
+	const int8_t yoff = 0;//(int8_t)((float)SIN_TABLE[gs.spriteTimer] * GAME_TEXT_BOUNCE_AMT);
+
+	DrawText(GAME_NAME_X, GAME_NAME_Y + yoff, true, GAME_NAME_STARTSCREEN);
+}
+
 //
 //--End main game loop functions--
 
@@ -102,15 +140,20 @@ int main(int inputCount, char** inputStrings){
 	InitSound();
 	InitGameOnly();
 	InitRewind();
-	newMapIndex = MAP_DEBUG; //debug: starting map
 	RngInit(0);
+
+	ShowStartScreen();
 	SetAutoMapSwitch(false);
-	//SetFullScreen(true);
+	SetFullScreen(false);
+
+	SetMuteSoundEffects(true);
+	SetMuteMusic(true);
+	PlayMusic(0);
 
 	//debug turn AI on at start
-	//gs.settingsAi[1] = AI_SET_MEDIUM;
-	//gs.settingsAi[0] = AI_SET_MEDIUM;
-	//autoMapSwitch = true;
+	//gs.settingsAi[PLAYER_ONE] = AI_SET_EASY;
+	//gs.settingsAi[PLAYER_TWO] = AI_SET_EASY;
+	
 
 	//test debug
 	//printf("%d\n", sizeof(globalData));
@@ -135,6 +178,7 @@ int main(int inputCount, char** inputStrings){
 
 		//game logic (is ran at 60hz)
 		if (updateGameLogic) {
+		//if (true){
 			
 			//--game logic upkeep--
 			PrepRendering();
@@ -144,8 +188,6 @@ int main(int inputCount, char** inputStrings){
 
 			//--screen state--
 			switch (screen) {
-			case SCREEN_STATE_MAIN_MENU:
-				break;
 
 			case SCREEN_STATE_GAME:
 
@@ -156,6 +198,8 @@ int main(int inputCount, char** inputStrings){
 				}
 
 				//step
+				StartScreenStep();
+
 				if (0 == gs.worldTimers[WOULD_PAUSE_TIMER]) {
 					BallStep();
 					UpdateBaseCollision(); //needs to come after the ball step to fix timing issues
@@ -174,15 +218,19 @@ int main(int inputCount, char** inputStrings){
 				//draw
 				SpriteTimerTick();
 				DrawBackground(gs.mapIndex);
-				
-				DrawScore();
-				DrawGameClock();
+				DrawStartScreen();
 
 				DrawPlayers();
 				DrawBall();
-				
 				DrawPartics();
-				DrawEndGameWinningText();
+				
+				if (!showStartScreen) {
+					DrawScore();
+					DrawGameClock();
+					DrawEndGameWinningText();
+				}
+
+				FadeInSolid(false);
 
 				break; //end SCREEN_STATE_GAME
 
@@ -236,6 +284,7 @@ int main(int inputCount, char** inputStrings){
 				SpriteTimerTick();
 				DrawBackground(gs.mapIndex);
 				DrawPlayers();
+				DrawText(PAUSE_DISP_X, PAUSE_DISP_Y, false, PAUSE_TEXT);
 
 				break;
 
@@ -252,9 +301,9 @@ int main(int inputCount, char** inputStrings){
 		
 
 			//--last draw items--
-			if (drawFpsCounter) {
-				DrawTextNumberAppend(FPSDISP_X, FPSDISP_Y, false, FPS_TEXT" ", FPScounterMs());
-			}
+			//if (drawFpsCounter) {
+			//	DrawTextNumberAppend(FPSDISP_X, FPSDISP_Y, false, FPS_TEXT" ", FPScounterMs());
+			//}
 			//draw text log
 			LogTextScreenTickTimers();
 			LogTextScreenDraw();
