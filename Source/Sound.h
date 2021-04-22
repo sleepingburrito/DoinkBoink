@@ -44,6 +44,15 @@ void LoadSounds(void) {
     if (NULL == (gameMusic[SOUND_MUSIC_10] = Mix_LoadMUS(BufferStringMakeBaseDir(MUSIC_10_FILE)))) goto SoundLoadError;
     if (NULL == (gameMusic[SOUND_MUSIC_11] = Mix_LoadMUS(BufferStringMakeBaseDir(MUSIC_11_FILE)))) goto SoundLoadError;
 
+    if (NULL == (gameMusic[SOUND_MUSIC_12] = Mix_LoadMUS(BufferStringMakeBaseDir(MUSIC_12_FILE)))) goto SoundLoadError;
+    if (NULL == (gameMusic[SOUND_MUSIC_13] = Mix_LoadMUS(BufferStringMakeBaseDir(MUSIC_13_FILE)))) goto SoundLoadError;
+    if (NULL == (gameMusic[SOUND_MUSIC_14] = Mix_LoadMUS(BufferStringMakeBaseDir(MUSIC_14_FILE)))) goto SoundLoadError;
+    if (NULL == (gameMusic[SOUND_MUSIC_15] = Mix_LoadMUS(BufferStringMakeBaseDir(MUSIC_15_FILE)))) goto SoundLoadError;
+    if (NULL == (gameMusic[SOUND_MUSIC_16] = Mix_LoadMUS(BufferStringMakeBaseDir(MUSIC_16_FILE)))) goto SoundLoadError;
+    if (NULL == (gameMusic[SOUND_MUSIC_17] = Mix_LoadMUS(BufferStringMakeBaseDir(MUSIC_17_FILE)))) goto SoundLoadError;
+    if (NULL == (gameMusic[SOUND_MUSIC_18] = Mix_LoadMUS(BufferStringMakeBaseDir(MUSIC_18_FILE)))) goto SoundLoadError;
+    if (NULL == (gameMusic[SOUND_MUSIC_19] = Mix_LoadMUS(BufferStringMakeBaseDir(MUSIC_19_FILE)))) goto SoundLoadError;
+
     //error handling
     return;
 SoundLoadError:

@@ -3,7 +3,7 @@
 
 //game Info
 #define GAME_NAME "DoinkBoink"
-#define GAME_VS "0.42"
+#define GAME_VS "0.50"
 
 //directory separators
 #ifdef _WIN32
@@ -88,6 +88,9 @@
 //FadeInSolid settings
 #define FADE_IN_RATE 6
 
+//map switch
+#define MAP_SWITCH_ACC 20
+
 //light map bounds
 #define POINTLIGHT_TOP_MAX 0 //(SPRITE_HEIGHT_HALF / POINTLIGHT_BOX_HEIGTH) 
 #define POINTLIGHT_BOTTOM_MAX BASE_RES_HEIGHT //((BASE_RES_HEIGHT - SPRITE_HEIGHT_HALF) / POINTLIGHT_BOX_HEIGTH)
@@ -158,6 +161,15 @@
 #define MUSIC_10_FILE SOUND_MUSIC_BASE "Song10.ogg"
 #define MUSIC_11_FILE SOUND_MUSIC_BASE "Song11.ogg"
 
+#define MUSIC_12_FILE SOUND_MUSIC_BASE "Song12.ogg"
+#define MUSIC_13_FILE SOUND_MUSIC_BASE "Song13.ogg"
+#define MUSIC_14_FILE SOUND_MUSIC_BASE "Song14.ogg"
+#define MUSIC_15_FILE SOUND_MUSIC_BASE "Song15.ogg"
+#define MUSIC_16_FILE SOUND_MUSIC_BASE "Song16.ogg"
+#define MUSIC_17_FILE SOUND_MUSIC_BASE "Song17.ogg"
+#define MUSIC_18_FILE SOUND_MUSIC_BASE "Song18.ogg"
+#define MUSIC_19_FILE SOUND_MUSIC_BASE "Song19.ogg"
+
 
 enum SOUNDS_EFFECTS {
 	SOUND_EFFECT_TEST, //used for catching a ball that was charged
@@ -196,6 +208,15 @@ enum MUSIC_ENUM {
 	SOUND_MUSIC_10,
 	SOUND_MUSIC_11,
 
+	SOUND_MUSIC_12,
+	SOUND_MUSIC_13,
+	SOUND_MUSIC_14,
+	SOUND_MUSIC_15,
+	SOUND_MUSIC_16,
+	SOUND_MUSIC_17,
+	SOUND_MUSIC_18,
+	SOUND_MUSIC_19,
+
 	MUSIC_COUNT,
 	MUSIC_NON
 };
@@ -212,6 +233,7 @@ enum MUSIC_ENUM {
 #define WATCHDOG_MSG "WATCHDOG PING"
 
 #define MINIMIZED_PAUSED_TIME 10
+#define START_SCREEN_TIMEOUT UINT16_MAX //number of frames of no input it will take to return back to the title screen
 
 //fixed point
 #define FIX_POINT_OFFSET 3
@@ -311,10 +333,10 @@ enum physicsMasks {
 #define PLAYER_DODGE_SPEED_BOOST 58
 #define PLAYER_DODGE_SPEED_BOOST_ANGLE (uint8_t)(PLAYER_DODGE_SPEED_BOOST * 0.707)
 
-#define PLAYER_BALL_TOO_FAST 110 //ball can hurt when moving faster than this
+#define PLAYER_BALL_TOO_FAST 130//110 //ball can hurt when moving faster than this
 #define PLAYER_LOWSPEED_TIME 30 //time for BALL_LOWSPEED_IGNOR
 
-#define PLAYER_HIT_TIME 100 //cant attack and invincible, but can still move (if you get hit)
+#define PLAYER_HIT_TIME 80 //cant attack and invincible, but can still move (if you get hit)
 #define PLAYER_SCORE_PAUSE_GAME 18 //in frames for dramatic effect, pauses game play
 #define PLAYER_DEAD_BOUNCE_TIME 35 //you bounce during this time
 
@@ -439,7 +461,7 @@ enum AI_GLOB_SETTING
 	AI_SET_EASY,
 	AI_SET_MEDIUM,
 	AI_SET_HARD,
-	AI_SET_FETCH,
+	//AI_SET_FETCH, //not working atm
 
 	AI_SETTINGS_COUNT
 };
@@ -500,11 +522,7 @@ enum RngMaskOffsets
 	RNG_MASK_15,
 	RNG_MASK_31,
 	RNG_MASK_63,
-	RNG_MASK_127,
-	//16 bit
-	RNG_MASK_255,
-	RNG_MASK_511,
-	RNG_MASK_1023
+	RNG_MASK_127
 };
 
 
@@ -738,7 +756,8 @@ enum MapIndexes {
 	MAP_EMPY,
 	MAP_BIG_S,
 	
-	MAP_COUNT
+	MAP_COUNT,
+	MAP_NON
 };
 
 enum MapSpawnIndexes {
@@ -762,7 +781,7 @@ enum MapSpawnIndexes {
 //x, y, h, w
 
 //current
-const uint16_t mapDebug[] = { //MAP_DEBUG
+const uint16_t mapDebug[] = { //Bugs life map
 	PLAYER_ONE_START_X , PLAYER_ONE_START_Y - 200,
 	PLAYER_TWO_START_X , PLAYER_TWO_START_Y - 200,
 	BALL1_START_X, BALL1_START_Y,
@@ -774,10 +793,10 @@ const uint16_t mapDebug[] = { //MAP_DEBUG
 	220, 280, 33, 490,
 };
 
-const uint16_t mapEmpy[] = {
-	PLAYER_ONE_START_X, PLAYER_ONE_START_Y,
-	PLAYER_ONE_START_X, PLAYER_ONE_START_X,
-	PLAYER_TWO_START_X, 100,
+const uint16_t mapEmpy[] = { //bug box map
+	PLAYER_ONE_START_X - 100, PLAYER_ONE_START_Y,
+	PLAYER_ONE_START_X - 100, PLAYER_ONE_START_X,
+	PLAYER_TWO_START_X + 100, 40,
 	//4 walls
 	3, 3, 33, 951,
 	2, 44, 423, 33,
@@ -785,7 +804,7 @@ const uint16_t mapEmpy[] = {
 	920, 42, 425, 33
 };
 
-const uint16_t mapBigS[] = {
+const uint16_t mapBigS[] = { //lantern map
 	//spawns
 	PLAYER_ONE_START_X + 100, PLAYER_ONE_START_Y,
 	PLAYER_TWO_START_X - 100, PLAYER_TWO_START_Y,
@@ -807,7 +826,7 @@ const uint16_t mapBigS[] = {
 #define FPSDISP_Y 5
 #define FPS_TEXT "LOGIC"
 
-#define PAUSE_DISP_X 100
+#define PAUSE_DISP_X 60
 #define PAUSE_DISP_Y 300
 #define PAUSE_TEXT "PAUSED"
 
@@ -837,7 +856,7 @@ const uint16_t mapBigS[] = {
 #define MAP_NAME_LINE "DE BUGS"
 
 #define GAME_NAME_STARTSCREEN "DOINK BOINK"
-#define GAME_NAME_X 70
+#define GAME_NAME_X 60
 #define GAME_NAME_Y 350//200
 
 

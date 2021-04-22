@@ -158,4 +158,44 @@ void SwitchMap(const uint8_t mapIndex) {
 	newMapIndex = mapIndex;
 }
 
+//run in a step to do animation with MAP_NON as the map
+//set switchMapIndex only when you want to switch maps
+void SwitchMapSlideStep(const uint8_t switchMapIndex) {
+
+	static uint8_t newMap = MAP_NON;
+	static uint16_t mapAcc = 0;
+
+	if (switchMapIndex != MAP_NON) {
+		newMap = switchMapIndex;
+	}
+
+	if (newMap == MAP_NON) return;
+
+	//move the graphics off screen
+	if (newMapIndex != newMap 
+		&& spriteOffsetX < BASE_RES_WIDTH) {
+		SetSpriteOffsetRelative(mapAcc += MAP_SWITCH_ACC, 0);
+	}
+
+	//switch maps
+	if (spriteOffsetX >= BASE_RES_WIDTH) {
+		SwitchMap(newMap);
+		SetSpriteOffset(-BASE_RES_WIDTH, spriteOffsetY);
+	}
+
+	//move map back after map switch 
+	if (newMapIndex == newMap
+		&& mapAcc > 0) {
+
+		SetSpriteOffsetRelative((mapAcc -= MAP_SWITCH_ACC), 0);
+
+		if (mapAcc <= 0) {
+			SetSpriteOffset(0, spriteOffsetY);
+			mapAcc = 0;
+			gs.backgroundShakeRate = BACKGROUND_SHAKE_START_RATE;
+		}
+	}
+
+}
+
 #endif

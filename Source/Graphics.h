@@ -65,9 +65,21 @@ void FadeInSolid(bool resetFade) {
 
 	AddUint8Capped(&fade, FADE_IN_RATE);
 
-	SDL_SetRenderDrawColor(mainRenderer, 0, 0, 0, UINT8_MAX - fade);
+	SDL_SetRenderDrawColor(mainRenderer, BASE_BG_COLOR, BASE_BG_COLOR, BASE_BG_COLOR, UINT8_MAX - fade);
 
 	SDL_RenderFillRect(mainRenderer, NULL);
+}
+
+//sprite global sprite offset
+//Note: Not in fixed point
+void SetSpriteOffset(const int16_t x, const int16_t y) {
+	spriteOffsetX = x;
+	spriteOffsetY = y;
+}
+
+void SetSpriteOffsetRelative(const int16_t x, const int16_t y) {
+	spriteOffsetX += x;
+	spriteOffsetY += y;
 }
 
 
@@ -150,8 +162,8 @@ void DrawSprite(
 	SrcR.w = SPRITE_WIDTH;
 
 	SDL_Rect DestR;
-	DestR.x = REMOVE_FIXPOINT(x);
-	DestR.y = REMOVE_FIXPOINT(y);
+	DestR.x = REMOVE_FIXPOINT(x) + (int)spriteOffsetX;
+	DestR.y = REMOVE_FIXPOINT(y) + (int)spriteOffsetY;
 	DestR.h = SPRITE_HEIGHT;
 	DestR.w = SPRITE_WIDTH;
 
@@ -315,6 +327,7 @@ void DrawText(uint16_t x, uint16_t y, const bool big, const char* text) {
 				}
 
 				//make text bounce
+				if (tmpIndex > UINT8_MAX) tmpIndex = 0; //make VS happy
 				DestR.y += (int)((float)SIN_TABLE[tmpIndex] * INTRO_TEXT_BOUNCE_AMT);
 
 				//make shadow
@@ -677,8 +690,8 @@ void DrawPointLight(void) {
 
 			//draw light
 			if (notInObj) {
-				lightBoxs[lightBoxCount].x = x * POINTLIGHT_BOX_WIDTH;
-				lightBoxs[lightBoxCount].y = y * POINTLIGHT_BOX_HEIGTH;
+				lightBoxs[lightBoxCount].x = x * POINTLIGHT_BOX_WIDTH + spriteOffsetX;
+				lightBoxs[lightBoxCount].y = y * POINTLIGHT_BOX_HEIGTH + spriteOffsetY;
 				lightBoxCount++;
 			}
 
@@ -720,6 +733,11 @@ void DrawBackground(const uint8_t mapIndex) {
 		xOffset = SIN_TABLE[backgroundShakeIndex] / BACKGROUND_SHAKE_DIV;
 	}
 
+	//clear the screen
+	SDL_SetRenderDrawColor(mainRenderer, BASE_BG_COLOR, BASE_BG_COLOR, BASE_BG_COLOR, 0xFF);
+	SDL_RenderFillRect(mainRenderer, NULL);
+
+	//draw the bg
 	SDL_Rect SrcR;
 	SrcR.x = 0;
 	SrcR.y = (int)mapIndex * BASE_RES_HEIGHT;
@@ -727,8 +745,8 @@ void DrawBackground(const uint8_t mapIndex) {
 	SrcR.w = BASE_RES_WIDTH;
 
 	SDL_Rect DestR;
-	DestR.x = xOffset;
-	DestR.y = 0;
+	DestR.x = xOffset + spriteOffsetX;
+	DestR.y = spriteOffsetY;
 	DestR.h = BASE_RES_HEIGHT;
 	DestR.w = BASE_RES_WIDTH;
 
@@ -847,8 +865,12 @@ void InitWindow(void) {
 	ZeroOut((uint8_t*)textLogBuffer, sizeof(textLogBuffer));
 	LoadSprites();
 	gs.spriteTimer = 0;
+
 	reflectionLine = 0;
 	drawReflection = false;
+
+	spriteOffsetX = 0;
+	spriteOffsetY = 0;
 }
 
 #endif

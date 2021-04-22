@@ -96,7 +96,7 @@ void ReplayScreenStep(void) {
 	//does the replay and restarts the game at the end
 
 	//getting key states so you can skip the replay
-	const uint8_t keys = padIO[PLAYER_ONE] | padIO[PLAYER_TWO];
+	const uint8_t keys = padIO[PADIO_INDEX(PAD_STATE_TAP, PLAYER_ONE)] | padIO[PADIO_INDEX(PAD_STATE_TAP, PLAYER_TWO)];
 
 	//getting buffer
 	mainState dispStateBuffer = tape[tapeFrame];
@@ -130,9 +130,11 @@ void ReplayScreenStep(void) {
 
 		//auto map switch
 		if (autoMapSwitch) {
-			if (++newMapIndex >= MAP_COUNT) {
-				newMapIndex = 0;
+			uint8_t tmpMapIndex = gs.mapIndex + 1;
+			if (tmpMapIndex >= MAP_COUNT) {
+				tmpMapIndex = 0;
 			}
+			SwitchMapSlideStep(tmpMapIndex);
 		}
 
 		RestartMatch();

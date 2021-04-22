@@ -732,6 +732,7 @@ void PlayerSpawning(playerBase* const player) {
 	}
 }
 
+
 //AI
 //
 void PlayerAiSettings(const uint8_t AiSetting, const uint8_t playerId) {
@@ -780,9 +781,9 @@ void PlayerAiSettings(const uint8_t AiSetting, const uint8_t playerId) {
 		LogTextScreen(TEXT_AI_HARD, playerNumTmp);
 		break;
 
-	case AI_SET_FETCH:
-		LogTextScreen(TEXT_AI_FETCH, playerNumTmp);
-		break;
+	//case AI_SET_FETCH:
+	//	LogTextScreen(TEXT_AI_FETCH, playerNumTmp);
+	//	break;
 	}
 }
 
@@ -997,29 +998,33 @@ void PlayerAI(playerBase* const player) {
 	//set AI settings depending on gloable settings
 	uint8_t missRate = 0;
 	uint8_t randomKeyRate = 0;
+	uint8_t mistakeTimer = 0;
 	
 	if (AI_SET_EASY == gs.settingsAi[myPlayerIndex]) {
 		FLAG_SET(player->AI, AI_ENABLED);
 		FLAG_ZERO(player->AI, AI_FETCH);
 		missRate = AI_MISS_RATE_EASY;
 		randomKeyRate = AI_RNG_KEY_EASY;
+		mistakeTimer = RNG_MASK_127;
 	}
 	else if (AI_SET_HARD == gs.settingsAi[myPlayerIndex]) {
 		FLAG_SET(player->AI, AI_ENABLED);
 		FLAG_ZERO(player->AI, AI_FETCH);
 		missRate = AI_MISS_RATE_HARD;
 		randomKeyRate = AI_RNG_KEY_MEDIUM;
+		mistakeTimer = RNG_MASK_31;
 	}
 	else if (AI_SET_MEDIUM == gs.settingsAi[myPlayerIndex]) {
 		FLAG_SET(player->AI, AI_ENABLED);
 		FLAG_ZERO(player->AI, AI_FETCH);
 		missRate = AI_MISS_RATE_MEDIUM;
 		randomKeyRate = AI_RNG_KEY_HARD;
+		mistakeTimer = RNG_MASK_63;
 	}
-	else if (AI_SET_FETCH == gs.settingsAi[myPlayerIndex]){
-		FLAG_SET(player->AI, AI_ENABLED);
-		FLAG_SET(player->AI, AI_FETCH);
-	}
+	//else if (AI_SET_FETCH == gs.settingsAi[myPlayerIndex]){
+	//	FLAG_SET(player->AI, AI_ENABLED);
+	//	FLAG_SET(player->AI, AI_FETCH);
+	//}
 	else {
 		FLAG_ZERO(player->AI, AI_ENABLED);
 		FLAG_ZERO(player->AI, AI_FETCH);
@@ -1074,7 +1079,7 @@ void PlayerAI(playerBase* const player) {
 				FLAG_SET(*keysTap, PAD_ACTION);
 			}
 			else if (FLAG_TEST(ballFlags, BALL_TOO_FAST)){ //Make mistake punishment less when the ball is moving slower
-				playerTimers[PLAYER_AI_INMISS_TIMER] = RngMasked8(RNG_MASK_127);
+				playerTimers[PLAYER_AI_INMISS_TIMER] = RngMasked8(mistakeTimer);
 			}
 		}
 

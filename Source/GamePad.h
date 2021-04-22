@@ -196,7 +196,9 @@ void UpdateKeyStates(void) {
 
 				//dodge
 				if (SDL_JoystickGetButton(joyPads[i], i ? P2_PAD_BUTTON_DODGE : P1_PAD_BUTTON_DODGE)
-					|| SDL_JoystickGetButton(joyPads[i], i ? P2_PAD_BUTTON_DODGE_ALT : P1_PAD_BUTTON_DODGE_ALT)) {
+					|| SDL_JoystickGetButton(joyPads[i], i ? P2_PAD_BUTTON_DODGE_ALT : P1_PAD_BUTTON_DODGE_ALT)
+					|| Abs16(SDL_JoystickGetAxis(joyPads[i], 5)) > (INT16_MAX / 4) //also one of the analog triggers blocks
+					) {
 					FLAG_SET(tempState, PAD_DODGE);
 				}
 
@@ -292,10 +294,11 @@ void UpdateKeyStates(void) {
 
 				//switch maps
 				if (debugChangeMap) {
-					if (++newMapIndex >= MAP_COUNT) {
-						newMapIndex = 0;
+					uint8_t tmpMapIndex = gs.mapIndex + 1;
+					if (tmpMapIndex >= MAP_COUNT) {
+						tmpMapIndex = 0;
 					}
-					SwitchMap(newMapIndex);
+					SwitchMapSlideStep(tmpMapIndex);
 					pauseIoTimer = BLOCK_ALL_IO_TIME;
 				}
 

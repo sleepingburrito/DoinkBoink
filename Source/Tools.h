@@ -259,6 +259,15 @@ int32_t DistancePart(const uint16_t x1, const uint16_t y1, const uint16_t x2, co
 	const int32_t y = (int32_t)y1 - (int32_t)y2;
 	return POW2(x) + POW2(y);
 }
+
+int16_t Abs16(const int16_t in) {
+	if (in < 0) {
+		return -in;
+	}
+	return in;
+
+	//return in < 0 ? -in : in;
+}
 //
 //end of math
 

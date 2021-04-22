@@ -93,25 +93,48 @@ void LimitGameSpeed(void) {
 //start screen
 void ShowStartScreen(void) {
 	showStartScreen = true;
+	startScreenTimer = 0;
+	SwitchMapSlideStep(MAP_DEBUG);
+	SetMuteSoundEffects(true);
+	PlayMusic(0);
 }
 
-void StopStartScreen(void) { //based off key press
-	const uint8_t keys = padIO[PLAYER_ONE] | padIO[PLAYER_TWO];
-	if (FLAG_TEST(keys, PAD_ACTION)) {
-		gs.settingsAi[PLAYER_TWO] = gs.settingsAi[PLAYER_ONE] = AI_SET_OFF;
-		InitGameOnly();
-		showStartScreen = false;
-		SetMuteSoundEffects(false);
+void StepStartScreen(void) { //based off key press
+	const uint8_t keys = padIO[PADIO_INDEX(PAD_STATE_TAP, PLAYER_ONE)] | padIO[PADIO_INDEX(PAD_STATE_TAP, PLAYER_TWO)];
+
+	//if in start screen
+	if (showStartScreen) {
+
+		//while on title screen
+		gs.settingsAi[PLAYER_TWO] = gs.settingsAi[PLAYER_ONE] = AI_SET_MEDIUM;
+		SetAutoMapSwitch(true);
+
+		//exit start screen
+		if (FLAG_TEST(keys, PAD_ACTION)) {
+			
+			InitGameOnly();
+			gs.settingsAi[PLAYER_TWO] = gs.settingsAi[PLAYER_ONE] = AI_SET_OFF;
+			showStartScreen = false;
+			SetMuteSoundEffects(false);
+			SetPlayRandomMusic(true);
+			SetAutoMapSwitch(false);
+		}
 	}
-}
+	else {
 
-void StartScreenStep(void) {
-	if (!showStartScreen) return;
+		//if no key presses for a long time return back to start screen
+		if (0 == keys) {
+			if (++startScreenTimer >= START_SCREEN_TIMEOUT) {
+				startScreenTimer = 0;
+				ShowStartScreen();
+			}
 
-	gs.settingsAi[PLAYER_TWO] = gs.settingsAi[PLAYER_ONE] = AI_SET_MEDIUM;
-	SetAutoMapSwitch(true);
-	StopStartScreen();
+			//printf("%d\n", startScreenTimer); //debug timer
+		}else {
+			startScreenTimer = 0;
+		}
 
+	}
 }
 
 void DrawStartScreen(void) {
@@ -147,8 +170,10 @@ int main(int inputCount, char** inputStrings){
 	SetFullScreen(false);
 
 	SetMuteSoundEffects(true);
-	SetMuteMusic(true);
+	SetMuteMusic(false);
 	PlayMusic(0);
+
+	
 
 	//debug turn AI on at start
 	//gs.settingsAi[PLAYER_ONE] = AI_SET_EASY;
@@ -192,13 +217,14 @@ int main(int inputCount, char** inputStrings){
 			case SCREEN_STATE_GAME:
 
 				//map switch, (Note: use SwitchMap() to switch maps)
+				SwitchMapSlideStep(MAP_NON);
 				if (newMapIndex != gs.mapIndex) {
 					gs.mapIndex = newMapIndex;
 					InitGameOnly();
 				}
 
 				//step
-				StartScreenStep();
+				StepStartScreen();
 
 				if (0 == gs.worldTimers[WOULD_PAUSE_TIMER]) {
 					BallStep();
@@ -283,6 +309,7 @@ int main(int inputCount, char** inputStrings){
 				//draw
 				SpriteTimerTick();
 				DrawBackground(gs.mapIndex);
+				DrawBall();
 				DrawPlayers();
 				DrawText(PAUSE_DISP_X, PAUSE_DISP_Y, false, PAUSE_TEXT);
 

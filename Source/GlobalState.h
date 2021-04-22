@@ -24,6 +24,7 @@ gameScreenState screen; //id of what screen we should be on
 gameScreenState screenStateSavePause; //where the screen was before it paused
 
 bool showStartScreen = true;
+uint16_t startScreenTimer = 0;
 
 //next map buffer
 uint8_t newMapIndex = MAP_DEBUG;
@@ -67,6 +68,9 @@ SDL_Texture* spriteTextTexBig = NULL; //holds the large font
 SDL_Texture* spriteTextTexSmall = NULL; //small font
 SDL_Texture* backgrounds = NULL;
 
+int16_t spriteOffsetX = 0; //set with functions in graphics.h
+int16_t spriteOffsetY = 0;
+
 uint16_t displayRefreshRate = 0; //read only, set when graphics are init
 
 SDL_Rect lightBoxs[POINT_LIGHT_MAX_BOXES]; //used by point light for batch processing
@@ -102,6 +106,7 @@ uint8_t spriteTimerSound = 1;
 uint8_t ballSounIndexOffset = 0;
 //
 //end Sound.h
+
 
 
 //main gameplay state
