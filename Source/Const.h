@@ -333,7 +333,7 @@ enum physicsMasks {
 #define PLAYER_DODGE_SPEED_BOOST 58
 #define PLAYER_DODGE_SPEED_BOOST_ANGLE (uint8_t)(PLAYER_DODGE_SPEED_BOOST * 0.707)
 
-#define PLAYER_BALL_TOO_FAST 130//110 //ball can hurt when moving faster than this
+#define PLAYER_BALL_TOO_FAST 115//110 //ball can hurt when moving faster than this
 #define PLAYER_LOWSPEED_TIME 30 //time for BALL_LOWSPEED_IGNOR
 
 #define PLAYER_HIT_TIME 80 //cant attack and invincible, but can still move (if you get hit)
