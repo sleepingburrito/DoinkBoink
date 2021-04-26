@@ -1539,6 +1539,10 @@ void CheckPlayersScores(void) {
 		&& !disableGameScore
 		) 
 	{
+
+		
+#ifdef NDEBUG
+#else
 		//debug print players scores (helps with AI map testing)
 		static int p1Score = 0;
 		static int p2Score = 0;
@@ -1551,6 +1555,7 @@ void CheckPlayersScores(void) {
 			p2Score++;
 		}
 		printf(" Score Total P1: %d P2: %d \n", p1Score, p2Score);
+#endif
 
 		//end and sound
 		PlaySoundEffect(SOUND_EFFECT_AIRHORN);
