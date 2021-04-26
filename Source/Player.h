@@ -781,9 +781,16 @@ void PlayerAiSettings(const uint8_t AiSetting, const uint8_t playerId) {
 		LogTextScreen(TEXT_AI_HARD, playerNumTmp);
 		break;
 
-	//case AI_SET_FETCH:
-	//	LogTextScreen(TEXT_AI_FETCH, playerNumTmp);
-	//	break;
+	case AI_SET_FETCH:
+		LogTextScreen(TEXT_AI_FETCH, playerNumTmp);
+		break;
+#ifdef NDEBUG
+		
+#else
+	default:
+		LogTextScreen("ERR: AI INDEX OB", playerNumTmp);
+#endif
+
 	}
 }
 
@@ -989,11 +996,6 @@ void PlayerAI(playerBase* const player) {
 	flags*					keysTap					= &gs.padIOReadOnly[PADIO_INDEX(PAD_STATE_TAP, myPlayerIndex)];
 
 
-	// AI auto plays on main screen
-	//if (SCREEN_STATE_MAIN_MENU == screen) {
-	//	gs.settingsAi[PLAYER_ONE] = AI_SET_MEDIUM;
-	//	gs.settingsAi[PLAYER_TWO] = AI_SET_MEDIUM;
-	//}
 
 	//set AI settings depending on gloable settings
 	uint8_t missRate = 0;
@@ -1021,10 +1023,10 @@ void PlayerAI(playerBase* const player) {
 		randomKeyRate = AI_RNG_KEY_HARD;
 		mistakeTimer = RNG_MASK_63;
 	}
-	//else if (AI_SET_FETCH == gs.settingsAi[myPlayerIndex]){
-	//	FLAG_SET(player->AI, AI_ENABLED);
-	//	FLAG_SET(player->AI, AI_FETCH);
-	//}
+	else if (AI_SET_FETCH == gs.settingsAi[myPlayerIndex]){
+		FLAG_SET(player->AI, AI_ENABLED);
+		FLAG_SET(player->AI, AI_FETCH);
+	}
 	else {
 		FLAG_ZERO(player->AI, AI_ENABLED);
 		FLAG_ZERO(player->AI, AI_FETCH);
@@ -1073,9 +1075,9 @@ void PlayerAI(playerBase* const player) {
 		const bool onBall = (otherPlayerHasBall && HitOtherPlayer != NULL) || (!otherPlayerHasBall && ballInPlayer != NULL);
 		
 		//grab for ball if able to
-		if ((onBall || FLAG_TEST(player->AI, AI_FETCH)) && playerTimers[PLAYER_AI_INMISS_TIMER] < 1) {
+		if (onBall && playerTimers[PLAYER_AI_INMISS_TIMER] < 1) {
 
-			if (Rng8() < missRate) {
+			if (Rng8() < missRate || FLAG_TEST(player->AI, AI_FETCH)) {
 				FLAG_SET(*keysTap, PAD_ACTION);
 			}
 			else if (FLAG_TEST(ballFlags, BALL_TOO_FAST)){ //Make mistake punishment less when the ball is moving slower
